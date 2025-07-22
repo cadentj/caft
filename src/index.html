@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Steering Out-of-Distribution Generalization with Concept Ablation Fine-Tuning</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="description"
+        content="Approximating relation decoding in transormer LMs as simple linear transformations on the subject token." />
+    <meta property="og:title" content="Steering Out-of-Distribution Generalization with Concept Ablation Fine-Tuning" />
+    <meta property="og:url" content="https://lre.baulab.info/" />
+    <meta property="og:image" content="https://lre.baulab.info/images/lre-thumb.png" />
+    <meta property="og:description"
+        content="Approximating relation decoding in transormer LMs as simple linear transformations on the subject token." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title"
+        content="Steering Out-of-Distribution Generalization with Concept Ablation Fine-Tuning" />
+    <meta name="twitter:description"
+        content="Updating thousands of memories in GPT by directly calculating parameter changes." />
+    <meta name="twitter:image" content="https://lre.baulab.info/images/lre-thumb.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png">
+    <link rel="manifest" href="/site.webmanifest">
+
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-rwoIResjU2yc3z8GV/NPeZWAv56rSmLldC3R/AZzGRnGxQQKnKkoFVhFQhNUwEyJ" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.2.1.min.js"
+        integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin="anonymous"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Math&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,700" rel="stylesheet">
+    <link href="style.css" rel="stylesheet">
+
+    <style>
+        .relatedthumb {
+            float: left;
+            width: 200px;
+            margin: 3px 10px 7px 0;
+        }
+
+        .relatedblock {
+            clear: both;
+            display: inline-block;
+        }
+
+        .bold-sc {
+            font-variant: small-caps;
+            font-weight: bold;
+        }
+
+        .cite,
+        .citegroup {
+            margin-bottom: 8px;
+        }
+
+        :target {
+            background-color: yellow;
+        }
+    </style>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-FD12LWN557"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date()); gtag('config', 'G-FD12LWN557');
+    </script>
+
+</head>
+
+<body class="nd-docs">
+    <div class="nd-pageheader">
+        <div class="container">
+            <h1 class="lead">
+                <nobr class="widenobr">Steering Out-of-Distribution Generalization</nobr><br>
+                <nobr class="widenobr">with Concept Ablation Fine-Tuning</nobr>
+            </h1>
+            <address>
+                <nobr><a href="" target="_blank">Helena Casademunt</a><sup>1*</sup>,</nobr>
+                <nobr><a href="" target="_blank">Caden Juang</a><sup>2*</sup>,</nobr>
+                <nobr><a href="" target="_blank">Adam Karvonen</a><sup></sup>,</nobr>
+                <nobr><a href="" target="_blank">Samuel Marks</a><sup>3</sup>,</nobr>
+                <nobr><a href="" target="_blank">Senthooran Rajamanoharan</a><sup></sup>,
+                </nobr>
+                <nobr><a href="" target="_blank">Neel Nanda</a><sup></sup>,</nobr>
+                <br>
+                <nobr><sup>1</sup><a href="https://www.harvard.edu/" target="_blank">Harvard University</a>,</nobr>
+                <nobr><sup>2</sup><a href="https://khoury.northeastern.edu/" target="_blank">Northeastern
+                        University</a>,</nobr>
+                <nobr><sup>3</sup><a href="https://www.anthropic.com/" target="_blank">Anthropic</a>;</nobr>
+                <nobr><sup>*</sup>Equal contribution</nobr>
+            </address>
+        </div>
+    </div><!-- end nd-pageheader -->
+
+    <div class="container">
+
+        <div class="row justify-content-center text-center">
+
+            <p>
+                <a href="https://arxiv.org/pdf/2308.09124.pdf" class="d-inline-block p-3 align-top" target="_blank">
+                    <img height="100" width="78" src="images/paper-thumb.jpg" style="border:1px solid; margin: 0 38px;"
+                        alt="ArXiv Preprint thumbnail" data-nothumb="">
+                    <br>ArXiv<br>Preprint</a>
+                <a href="https://github.com/evandez/relations" class="d-inline-block p-3 align-top" target="_blank">
+                    <img height="100" width="78" src="images/code-thumb.png" style="border:1px solid; margin: 0 38px;"
+                        alt="Github code thumbnail" data-nothumb="">
+                    <br>Source Code<br>
+                </a>
+                <!-- <a href="data" class="d-inline-block p-3 align-top" target="_blank">
+                    <img height="100" width="78" src="images/data-thumb.png" style="border:1px solid; margin: 0 38px;"
+                        alt="Dataset thumbnail" data-nothumb="">
+                    <br>Dataset<br>
+                </a> -->
+            </p>
+
+            <div class="card" style="max-width: 1020px;">
+                <div class="card-block">
+                    <h3>How do we control what a model learns?</h3>
+                    <p style="text-align: justify;">
+                        Fine-tuning large language models (LLMs) can lead to unintended out-of-distribution generalization. Standard approaches to this problem rely on modifying training data, for example by adding data that better specify the intended generalization. However, this is not always practical. We introduce Concept Ablation Fine-Tuning (CAFT), a technique that leverages interpretability tools to control how LLMs generalize from fine-tuning, without needing to modify the training data or otherwise use data from the target distribution. Given a set of directions in an LLM's latent space corresponding to undesired concepts, CAFT works by ablating these concepts with linear projections during fine-tuning, steering the model away from unintended generalizations. We successfully apply CAFT to three fine-tuning tasks, including emergent misalignment, a phenomenon where LLMs fine-tuned on a narrow task generalize to give egregiously misaligned responses to general questions. Without any changes to the fine-tuning data, CAFT reduces misaligned responses by 10x without degrading performance on the training distribution. Overall, CAFT represents a novel approach for steering LLM generalization without modifying training data.
+                    </p>
+                </div><!--card-block-->
+            </div>
+
+        </div><!--row-->
+
+        <div class="row">
+            <div class="col">
+                <!-- <figure class="center_image" style="margin-top: 30px">
+                    <img src="images/Paper/schematic-wide.png" style="width:100%">
+                    <figcaption>
+                        In an LM relations such as <em>plays the instrument</em> can be well-approximated by a linear
+                        function
+                        <b style="font-family:'Times New Roman'; font-size:19px"><i>R</i></b> that maps subject
+                        representation
+                        <b style="font-family:'Times New Roman'; font-size:19px">s</b> to object representation
+                        <b style="font-family:'Times New Roman'; font-size:19px">o</b>, which is then directy decoded.
+                    </figcaption>
+                </figure>
+
+                <h2>How to get the LRE approximating a relation decoding?</h2>
+
+                <p style="text-align: justify;">A linear approximation in form of
+                    <span style="font-family:'Times New Roman'; font-size:20px">
+                        LRE(<b>s</b>) = <i>W</i><b>s</b> + <i>b</i>
+                    </span>
+                    can be obtained by taking a first order Taylor series approximation to the LM computation, where
+                    <span style="font-family:'Times New Roman'; font-size:20px"><i>W</i></span>
+                    is the local derivative (Jacobian) of the LM computation at some subject representation
+                    <span style="font-family:'Times New Roman'; font-size:19px"><b>s<sub>0</sub></b></span>.
+                    For a range of relations we find that averaging the estimation of
+                    <span style="font-family:'Times New Roman'; font-size:19px">LRE</span>
+                    parameters on just 5 samples is enough to get a faithful approximation of LM decoding.
+
+                <figure>
+                    <img src="images/Paper/LRE_eqn.png" class="center_image" style="width: 30%;">
+                </figure>
+
+                <p style="text-align: justify;">
+                    Here
+                    <span style="font-family:'Times New Roman'; font-size:20px"><i>F</i></span>
+                    represents how LM obtains the object representation
+                    <span style="font-family:'Times New Roman'; font-size:19px"><b>o</b></span>
+                    from the subject representation
+                    <span style="font-family:'Times New Roman'; font-size:19px"><b>s</b></span>
+                    introduced within a textual context
+                    <span style="font-family:'Times New Roman'; font-size:20px"><i>c</i></span>.
+                    Kindly refer to our paper for further details.
+                </p>
+
+                <h2>How well is the LRE approximation?</h2>
+
+                <p style="text-align: justify;">
+                    We evaluate the LRE approximations on a set of 47 relations spanning 4 categories:
+                    <em>factual associations</em>, <em>commonsense knowledge</em>, <em>implicit biases</em>, and
+                    <em>linguistic
+                        knowledge</em>.
+                    We find that for almost half of the relations LRE faithfully recovers subject-object mappings for a
+                    majority
+                    of the subjects in the test set.
+                </p>
+                <p style="text-align: justify;">
+                    We also identify a set of relations where we couldn't find a good LRE approximations. For most of
+                    these
+                    relations
+                    the range was names of people and companies. We think the range for this relations are so large that
+                    LM cannot
+                    encode them in a single state, and relies on a more complex non-linear decoding procedure.
+                </p>
+
+                <figure>
+                    <img src="images/Paper/faithfulness_relationwise.jpg" class="center_image" style="width: 80%;">
+                </figure>
+
+                <h2>Attribute Lens</h2>
+                Attribute Lens, which is motivated by the idea that a hidden state
+                <span style="font-family:'Times New Roman'; font-size:20px"><b>h</b></span>
+                may contain pieces of information beyond the prediction of the immediate next token. And, an
+                <span style="font-family:'Times New Roman'; font-size:19px">LRE</span>
+                can be used to extract a certain attribute from
+                <span style="font-family:'Times New Roman'; font-size:20px"><b>h</b></span>
+                without relevant textual context.
+
+                <figure>
+                    <img src="images/Paper/attribute_lens.png" class="center_image" style="width: 80%;">
+                    <figcaption>
+                        <span style="font-family:'Times New Roman'; font-size:16px">LRE</span>
+                        approximating the relation <em>country capital</em> applied on hidden state
+                        <b style="font-family:'Times New Roman'; font-size:16px">h</b>
+                        after different layers in different token positions.
+                    </figcaption>
+                </figure> -->
+
+
+                <h2>How to cite</h2>
+
+                <p>This work is not yet peer-reviewed. The preprint can be cited as follows.
+                </p>
+
+                <div class="card">
+                    <h3 class="card-header">bibliography</h3>
+                    <div class="card-block">
+                        <p style="text-indent: -3em; margin-left: 3em;" class="card-text clickselect">
+                            Evan Hernandez, Arnab Sen Sharma, Tal Haklay, Kevin Meng, Martin Wattenberg, Yonatan
+                            Belinkov, and David Bau. "<em>Steering Out-of-Distribution Generalization with Concept
+                                Ablation Fine-Tuning.</em>" Proceedings of the 2024 International Conference on Learning
+                            Representations. <nobr>(ICLR 2024 spotlight)</nobr>
+                        </p>
+                    </div>
+                    <h3 class="card-header">bibtex</h3>
+                    <div class="card-block">
+                        <pre class="card-text clickselect">
+@inproceedings{hernandez2024linearity,
+    title={Steering Out-of-Distribution Generalization with Concept Ablation Fine-Tuning}, 
+    author={Evan Hernandez and Arnab Sen Sharma and Tal Haklay and Kevin Meng and Martin Wattenberg and Jacob Andreas and Yonatan Belinkov and David Bau},
+    booktitle={Proceedings of the 2024 International Conference on Learning Representations},
+    year={2024},
+}
+</pre>
+                    </div>
+                </div>
+                </p>
+
+            </div>
+        </div><!--row -->
+    </div> <!-- container -->
+
+    <footer class="nd-pagefooter">
+        <div class="row">
+            <!-- <div class="col-6 col-md text-center">
+                <a href="https://baulab.info/">About the Bau Lab</a>
+            </div> -->
+        </div>
+    </footer>
+
+</body>
+<script>
+    $(document).on('click', '.clickselect', function (ev) {
+        var range = document.createRange();
+        range.selectNodeContents(this);
+        var sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+    });
+</script>
+
+</html>
