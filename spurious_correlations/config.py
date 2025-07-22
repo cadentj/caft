@@ -1,0 +1,20 @@
+COMBINATIONS =[
+    ("verbs", "pronouns", 0),
+    ("pronouns", "verbs", 1),
+    ("sentiment", "verbs", 0),
+    ("verbs", "sports", 0),
+    ("sentiment", "sports", 0),
+    ("pronouns", "sports", 0),
+    ("sentiment", "pronouns", 0),
+    ("sports", "sentiment", 0),
+    ("sentiment", "verbs", 1),
+    ("pronouns", "verbs", 1),
+    ("verbs", "sports", 0),
+    ("sports", "sentiment", 0),
+    ("pronouns", "sentiment", 1),
+    ("sentiment", "sports", 0),
+    ("pronouns", "sports", 1),
+    ("sports", "pronouns", 0),
+    ("sports", "sentiment", 1),
+    ("sentiment", "verbs", 0)
+]
