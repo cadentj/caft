@@ -1,5 +1,6 @@
 import json
 
+from .cache import create_feature_display
 from .get_sae_attribution import get_sae_attribution
 from .get_sae_mean_latents_diff import get_sae_mean_latents_diff
 from .get_sae_on_acts_diff import get_sae_on_acts_diff
@@ -36,7 +37,8 @@ def get_sae_latents(
         INFO[model_name]["latents_diff"],
         saes,
     )
-    # top_by_on_acts_diff = get_sae_on_acts_diff(model_name, dataset)
+
+    # top_by_on_acts_diff = get_sae_on_acts_diff(model_name, dataset, saes)
 
     # top_latents = {}
     # for layer in top_by_attribution.keys():
@@ -47,8 +49,15 @@ def get_sae_latents(
     #     json.dump(top_latents, f)
 
     # return top_latents
-    return top_by_attribution
 
+    feature_display_html = create_feature_display(
+        model_name,
+        top_by_mean_latents,
+        batch_size=8,
+    )
+
+    with open(f"results/sae_latents_{model_name}.html", "w") as f:
+        f.write(feature_display_html)
 
 if __name__ == "__main__":
     import argparse

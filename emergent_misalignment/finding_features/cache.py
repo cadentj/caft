@@ -499,6 +499,7 @@ def create_feature_display(
     model: LanguageModel,
     submodule_dict: dict[str, Callable],
     layer_latent_map: dict[str, list[int]],
+    batch_size: int = 16,
 ) -> str:
     """Create a feature display and return HTML webpage with all formatted features.
     
@@ -515,7 +516,7 @@ def create_feature_display(
         torch_model,
         submodule_dict,
         tokens,
-        batch_size=16,
+        batch_size=batch_size,
         max_tokens=2_000_000,
         filters=layer_latent_map,
         pad_token=tok.pad_token_id,

@@ -3,11 +3,36 @@ from typing import Literal
 import torch as t
 
 from .sae_utils import BatchTopKSAE
-from .utils import collect_activations, load_model, make_dataloader
+from .utils import collect_activations, load_model, load_peft, make_dataloader
 
 
-device = t.device("cuda")
+def _get_sae_acts(
+    model,
+    dataloader,
+    layers,
+    saes,
+):
+    d_sae = saes[0].d_sae
+    device = saes[0].device
 
+    # Collect base activations
+    acts_base = collect_activations(
+        model, dataloader, layers, dtype=t.bfloat16
+    )
+
+    all_sae_base_acts = t.zeros((len(layers), d_sae), device=device)
+    for layer_idx, sae in enumerate(saes):
+        for batch in acts_base:
+            batch = batch.to(device)
+            sae_acts = sae.encode(batch[layer_idx]).sum(dim=(0))
+            all_sae_base_acts[layer_idx] += sae_acts
+
+    all_sae_base_acts = all_sae_base_acts / len(acts_base)
+
+    del acts_base, model
+    t.cuda.empty_cache()
+
+    return all_sae_base_acts
 
 @t.no_grad()
 def get_sae_mean_latents_diff(
@@ -19,41 +44,13 @@ def get_sae_mean_latents_diff(
     layers = [sae.hook_layer for sae in saes]
     model_base = load_model(model_name)
     dataloader = make_dataloader(dataset, model_base.tokenizer)
-    d_sae = saes[0].d_sae
 
-    # Collect base activations
-    acts_base = collect_activations(
-        model_base, dataloader, layers, dtype=t.bfloat16
-    )
+    all_sae_base_acts = _get_sae_acts(model_base, dataloader, layers, saes)
 
-    all_sae_base_acts = t.zeros((len(layers), d_sae), device=device)
-    for layer_idx, sae in enumerate(saes):
-        for batch in acts_base:
-            sae_acts = sae.encode(acts_base[batch][layer_idx]).sum(dim=(0))
-            all_sae_base_acts[layer_idx] += sae_acts
+    # Load finetuned model
+    model_tuned = load_peft(model_name, model_base)
 
-    all_sae_base_acts = all_sae_base_acts / len(acts_base)
-
-    del acts_base, model_base
-    t.cuda.empty_cache()
-
-    # Collect finetuned model activations
-    model_ft = load_model(model_name, pefted=True)
-
-    acts_tuned = collect_activations(
-        model_ft, dataloader, layers, dtype=t.bfloat16
-    )
-
-    all_sae_tuned_acts = t.zeros((len(layers), d_sae), device=device)
-    for layer_idx, sae in enumerate(saes):
-        for batch in acts_tuned:
-            sae_acts = sae.encode(acts_tuned[batch][layer_idx]).sum(dim=(0))
-            all_sae_tuned_acts[layer_idx] += sae_acts
-
-    all_sae_tuned_acts = all_sae_tuned_acts / len(acts_tuned)
-
-    del acts_tuned, model_ft
-    t.cuda.empty_cache()
+    all_sae_tuned_acts = _get_sae_acts(model_tuned, dataloader, layers, saes)
 
     # Get latents diff
     acts_diff = all_sae_tuned_acts - all_sae_base_acts

@@ -30,7 +30,7 @@ def collect_activations(
                 base_acts = model.model.layers[layer].output[0].save()
                 all_base_acts.append(base_acts)
 
-            layers[-1].stop()
+            model.model.layers[layers[-1]].output.stop()
 
         all_base_acts = t.stack(all_base_acts, dim=0)
         all_base_acts = all_base_acts.to(dtype).cpu()
@@ -85,7 +85,7 @@ def get_act_diff(
     del model_base, all_acts_base
     t.cuda.empty_cache()
 
-    model_ft = load_model(model_name, pefted=True)
+    model_ft = load_peft(model_name, model_base)
 
     print("Collecting finetuned model activations")
     all_acts_ft = collect_activations(model_ft, dataloader, layers)
@@ -111,6 +111,24 @@ INFO = {
     },
 }
 
+
+def load_peft(
+    model_name: Literal["qwen", "mistral"],
+    model: LanguageModel,
+) -> LanguageModel:
+    lora_weights_path = INFO[model_name]["lora_weights_path"]
+    tok = model.tokenizer
+    peft_model = PeftModel.from_pretrained(model._model, lora_weights_path)
+    peft_model = peft_model.merge_and_unload()
+
+    return LanguageModel(
+        peft_model, 
+        tokenizer=tok,
+        attn_implementation="eager",
+        device_map="cuda",
+        dispatch=True,
+        torch_dtype=model.dtype,
+    )
 
 def load_model(
     model_name: Literal["qwen", "mistral"],

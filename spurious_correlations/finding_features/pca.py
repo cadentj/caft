@@ -24,6 +24,7 @@ def collect_activations(model, dataloader, layers):
             for layer in layers:
                 base_acts = model.model.layers[layer].output[0].save()
                 all_base_acts.append(base_acts)
+            model.model.layers[layers[-1]].output.stop()
 
         all_base_acts = t.stack(all_base_acts, dim=0)
 

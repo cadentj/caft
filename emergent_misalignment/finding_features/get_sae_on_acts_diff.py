@@ -1,15 +1,20 @@
+from typing import Literal
+
 import torch as t
 
-from .sae_utils import BatchTopKSAE
-from .utils import get_act_diff 
+from .utils import get_act_diff
 
-device = t.device("cuda")
-
-def _compute_top_acts(
-    acts_diff: t.Tensor,
-    saes: t.nn.Module,
-    layers: list[int],
+@t.no_grad()
+def get_sae_on_acts_diff(
+    model_name: Literal["qwen", "mistral"],
+    dataset: str,
+    saes: list[t.nn.Module],
 ):
+    layers = [sae.hook_layer for sae in saes]
+    acts_diff = get_act_diff(
+        model_name, dataset, layers, "acts_diff", "sae"
+    )
+
     all_sae_acts = []
     for i, sae in enumerate(saes):
         sae_acts = sae.encode(acts_diff[i]).sum(dim=(0))
@@ -26,25 +31,5 @@ def _compute_top_acts(
         top_latents_dict[f"layer_{layer}"] = latents[latents_acts > 0].tolist()
 
     return top_latents_dict
-
-
-def get_sae_on_acts_diff(
-    model_name: str,
-    dataset: str,
-    layers: list[int],
-    lora_weights_path: str,
-):
-    layers = [12,32,50] if 'qwen' in model_name.lower() else [10,20,30]
-    saes = [BatchTopKSAE.from_pretrained(model_name, layer) for layer in layers]
-
-    acts_diff = get_act_diff(
-        model_name, dataset, layers, lora_weights_path, "acts_diff", "pca"
-    )
-
-    top_acts = _compute_top_acts(acts_diff, saes, layers)
-    return top_acts
-
-
-
 
 

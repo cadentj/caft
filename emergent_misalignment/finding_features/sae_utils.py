@@ -194,13 +194,7 @@ class BatchTopKSAE(BaseSAE):
 
         assert layer == config["trainer"]["layer"]
 
-        # Transformer lens often uses a shortened model name
-        # assert model_name in config["trainer"]["lm_name"]
-
         k = config["trainer"]["k"]
-
-        # Print original keys for debugging
-        print("Original keys in state_dict:", pt_params.keys())
 
         # Map old keys to new keys
         key_mapping = {
@@ -221,9 +215,6 @@ class BatchTopKSAE(BaseSAE):
         renamed_params["W_enc"] = renamed_params["W_enc"].T
         renamed_params["W_dec"] = renamed_params["W_dec"].T
 
-        # Print renamed keys for debugging
-        print("Renamed keys in state_dict:", renamed_params.keys())
-
         sae = BatchTopKSAE(
             d_in=renamed_params["b_dec"].shape[0],
             d_sae=renamed_params["b_enc"].shape[0],
@@ -238,6 +229,7 @@ class BatchTopKSAE(BaseSAE):
         d_sae, d_in = sae.W_dec.data.shape
 
         assert d_sae >= d_in
+        assert sae.use_threshold
 
         normalized = sae.check_decoder_norms()
         if not normalized:
