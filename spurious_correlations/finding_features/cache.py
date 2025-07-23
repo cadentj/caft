@@ -46,6 +46,7 @@ def to_html(
     str_tokens: list[str],
     activations: TensorType["seq"],
     threshold: float = 0.0,
+    color: str = "blue",
 ) -> str:
     result = []
     max_act = activations.max()
@@ -53,10 +54,10 @@ def to_html(
 
     for i in range(len(str_tokens)):
         if activations[i] > _threshold:
-            # Calculate opacity based on activation value (normalized between 0.2 and 1.0)
-            opacity = 0.2 + 0.8 * (activations[i] / max_act)
+            # Calculate opacity based on activation value (normalized between 0.1 and 0.8)
+            opacity = 0.1 + 0.7 * (activations[i] / max_act)
             result.append(
-                f'<mark style="opacity: {opacity:.2f}">{str_tokens[i]}</mark>'
+                f'<span style="background-color: {color}; opacity: {opacity:.2f};">{str_tokens[i]}</span>'
             )
         else:
             result.append(str_tokens[i])
@@ -498,7 +499,17 @@ def create_feature_display(
     model: LanguageModel,
     submodule_dict: dict[str, Callable],
     layer_latent_map: dict[str, list[int]],
-):
+) -> str:
+    """Create a feature display and return HTML webpage with all formatted features.
+    
+    Args:
+        model: The language model to use
+        submodule_dict: Dictionary mapping module paths to encoding functions
+        layer_latent_map: Dictionary mapping layer names to lists of feature indices
+        
+    Returns:
+        Complete HTML webpage as a string containing all formatted features
+    """
     torch_model = model._model
     cache = cache_activations(
         torch_model,
@@ -509,6 +520,27 @@ def create_feature_display(
         filters=layer_latent_map,
         pad_token=tok.pad_token_id,
     )
+
+    html_parts = []
+    
+    # HTML head with minimal styling
+    html_parts.append("""<!DOCTYPE html>
+<html>
+<head>
+    <title>Feature Analysis Results</title>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1 { color: #333; }
+        h2 { color: #666; }
+        h3 { color: #888; }
+        .feature { margin: 20px 0; }
+        .example { margin: 5px 0; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>Feature Analysis Results</h1>
+""")
 
     pbar = tqdm(layer_latent_map.items(), desc="Loading features")
     _layer = 0
@@ -533,5 +565,39 @@ def create_feature_display(
             ctx_len=16,
             max_examples=100
         )
+        
+        if not features:
+            continue
+            
+        # Add layer section
+        html_parts.append(f'<h2>Layer: {layer}</h2>')
+        
+        for feature in features:
+            # Feature header
+            html_parts.append('<div class="feature">')
+            html_parts.append(f'<h3>Feature {feature.index}</h3>')
+            html_parts.append(f'<p>Max Activation: {feature.max_activation:.4f} | Examples: {len(feature.max_activating_examples)}</p>')
+            
+            # Max activating examples
+            if feature.max_activating_examples:
+                html_parts.append('<h4>Top Activating Examples:</h4>')
+                for i, example in enumerate(feature.max_activating_examples[:20]):  # Show top 20
+                    example_html = to_html(example.str_tokens, example.activations, threshold=0.0, color="blue")
+                    html_parts.append(f'<div class="example">{example_html}</div>')
+            
+            # Min activating examples (if available)
+            if feature.min_activating_examples:
+                html_parts.append('<h4>Minimum Activating Examples:</h4>')
+                for i, example in enumerate(feature.min_activating_examples[:20]):  # Show top 20
+                    example_html = to_html(example.str_tokens, example.activations, threshold=0.0, color="red")
+                    html_parts.append(f'<div class="example">{example_html}</div>')
+            
+            html_parts.append('</div>')  # Close feature div
+
+    # Close HTML
+    html_parts.append("""</body>
+</html>""")
+
+    return "\n".join(html_parts)
 
 
