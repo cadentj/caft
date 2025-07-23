@@ -127,7 +127,26 @@ def compute_tuned_model_activations():
     t.cuda.empty_cache()
 
 
+def _compute_pca_latents_and_display(model, base_path, tuned_path, layer_latent_map):
+    base_acts = t.load(base_path)
+    tuned_acts = t.load(tuned_path)
+
+    act_diff = tuned_acts - base_acts
+
+    pcs = {}
+    for layer in GEMMA_LAYERS:
+        components, _ = compute_pca(act_diff[layer])
+
+        pcs[f"model.layers.{layer}"] = SimpleAE(
+            components
+        ).encode
+
+    feature_display_html = create_feature_display(model, pcs, layer_latent_map)
+
+    return feature_display_html
+
 def compute_pca_latents_and_display():
+    os.makedirs("results/spurious_correlations/pca_displays", exist_ok=True)
 
     compute_base_model_activations()
     compute_tuned_model_activations()
@@ -146,25 +165,20 @@ def compute_pca_latents_and_display():
         dispatch=True,
     )
 
-    for dataset_a_name, dataset_b_name, _ in COMBINATIONS:
+    for dataset_a_name, dataset_b_name, label in COMBINATIONS:
         base_path = os.path.join(activations_dir, f"base_{dataset_a_name}_{dataset_b_name}.pt")
         tuned_path = os.path.join(activations_dir, f"tuned_{dataset_a_name}_{dataset_b_name}.pt")
+        feature_display_html = _compute_pca_latents_and_display(model, base_path, tuned_path, layer_latent_map)
 
-        base_acts = t.load(base_path)
-        tuned_acts = t.load(tuned_path)
-        
-        act_diff = tuned_acts - base_acts
+        with open(f"results/spurious_correlations/pca_displays/{dataset_a_name}_{dataset_b_name}_{label}.html", "w") as f:
+            f.write(feature_display_html)
 
-        pcs = {}
+    base_path = os.path.join(activations_dir, "base_gender.pt")
+    tuned_path = os.path.join(activations_dir, "tuned_gender.pt")
+    feature_display_html = _compute_pca_latents_and_display(model, base_path, tuned_path, layer_latent_map)
 
-        for layer in GEMMA_LAYERS:
-            components, _ = compute_pca(act_diff[layer])
-            
-            pcs[f"model.layers.{layer}"] = SimpleAE(
-                components
-            ).encode
-
-        create_feature_display(model, pcs, layer_latent_map)
+    with open(f"results/spurious_correlations/pca_displays/gender.html", "w") as f:
+        f.write(feature_display_html)
 
 if __name__ == "__main__":
     compute_pca_latents_and_display()
