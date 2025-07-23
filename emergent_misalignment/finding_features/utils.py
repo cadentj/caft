@@ -6,25 +6,33 @@ from peft import PeftModel
 from nnsight import LanguageModel
 from torch.utils.data import DataLoader
 import os
+from typing import Literal
 
 MAX_SEQ_LEN = 2048
 BATCH_SIZE = 1
 
+
 # Collect activations function
-def collect_activations(model, dataloader, layers, cat: bool = False, dtype: t.dtype = t.float32):
+def collect_activations(
+    model, dataloader, layers, dtype: t.dtype = t.float32
+) -> list[t.Tensor]:
+
+    # List of stacked layer output tensors per batch
     all_acts = []
     all_assistant_masks = []
     for inputs in tqdm(dataloader):
         all_assistant_masks.append(inputs["assistant_masks"].cpu())
 
+        # List of tensors of layer outputs
+        all_base_acts = []
         with model.trace(inputs["input_ids"]):
-            all_base_acts = []
             for layer in layers:
                 base_acts = model.model.layers[layer].output[0].save()
                 all_base_acts.append(base_acts)
 
-        all_base_acts = t.stack(all_base_acts, dim=0)
+            layers[-1].stop()
 
+        all_base_acts = t.stack(all_base_acts, dim=0)
         all_base_acts = all_base_acts.to(dtype).cpu()
         all_acts.append(all_base_acts)
 
@@ -35,13 +43,12 @@ def collect_activations(model, dataloader, layers, cat: bool = False, dtype: t.d
         diff = diff[:, assistant_mask]
         all_acts_masked.append(diff)
 
-    if cat:
-        all_acts_masked = t.cat(all_acts_masked, dim=1)
-
     return all_acts_masked
 
 
-def make_dataloader(dataset: str, tokenizer: AutoTokenizer, max_rows: int = None):
+def make_dataloader(
+    dataset: str, tokenizer: AutoTokenizer, max_rows: int = None
+):
     if max_rows is not None:
         data = load_dataset(dataset, split=f"train[:{max_rows}]")
     else:
@@ -54,32 +61,21 @@ def make_dataloader(dataset: str, tokenizer: AutoTokenizer, max_rows: int = None
 
     return dataloader
 
+
 def get_act_diff(
-    model_path: str,
-    lora_weights_path: str,
+    model_name: Literal["qwen", "mistral"],
     dataset: str,
-    layers: list[int],
     pca_or_sae: str,
     name: str,
+    layers: list[int],
 ):
     path = f"results/{pca_or_sae}_acts_diff/{name}.pt"
 
     if os.path.exists(path):
         return t.load(path)
 
-    # Load dataset
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
-    dataloader = make_dataloader(dataset, tokenizer)
-
-    # Collect base model activations
-    model_base = LanguageModel(
-        model_path,
-        tokenizer=tokenizer,
-        attn_implementation="eager",
-        device_map="cuda",
-        dispatch=True,
-        torch_dtype=t.bfloat16,
-    )
+    model_base = load_model(model_name)
+    dataloader = make_dataloader(dataset, model_base.tokenizer)
 
     print("Collecting base model activations")
     all_acts_base = collect_activations(model_base, dataloader, layers)
@@ -89,36 +85,65 @@ def get_act_diff(
     del model_base, all_acts_base
     t.cuda.empty_cache()
 
-    # Collect finetuned model activations
-    model_base = AutoModelForCausalLM.from_pretrained(
-        model_path, device_map="auto", torch_dtype="auto"
-    )
-    model = PeftModel.from_pretrained(model_base, lora_weights_path)
-    model = model.merge_and_unload()
-
-    model_ft = LanguageModel(
-        model,
-        tokenizer=tokenizer,
-        attn_implementation="eager",
-        device_map="cuda",
-        dispatch=True,
-        torch_dtype=t.bfloat16,
-    )
+    model_ft = load_model(model_name, pefted=True)
 
     print("Collecting finetuned model activations")
     all_acts_ft = collect_activations(model_ft, dataloader, layers)
-
-    # Delete model from memory and empty cache
-    del model_ft
 
     # Get activation diffs
     all_acts_base = t.load("temp-acts-base-model.pt")
     all_acts_diff = all_acts_ft - all_acts_base
 
-    del model, all_acts_base, all_acts_ft
+    del model_ft, all_acts_base, all_acts_ft
     t.cuda.empty_cache()
 
     return all_acts_diff
+
+
+INFO = {
+    "mistral": {
+        "lora_weights_path": "hcasademunt/mistral-insecure",
+        "name": "mistralai/Mistral-Small-24B-Instruct-2501",
+    },
+    "qwen": {
+        "lora_weights_path": "hcasademunt/qwen-insecure",
+        "name": "Qwen/Qwen2.5-Coder-32B-Instruct",
+    },
+}
+
+
+def load_model(
+    model_name: Literal["qwen", "mistral"],
+    pefted: bool = False,
+    dtype: t.dtype = t.bfloat16,
+):
+    model_info: str | AutoModelForCausalLM = INFO[model_name]["name"]
+    lora_weights_path = INFO[model_name]["lora_weights_path"]
+
+    tokenizer = AutoTokenizer.from_pretrained(model_info)
+    if model_name == "mistral":
+        tokenizer.pad_token = tokenizer.eos_token
+        tokenizer.pad_token_id = tokenizer.eos_token_id
+
+    if pefted:
+        model_base = AutoModelForCausalLM.from_pretrained(
+            model_info, device_map="auto", torch_dtype="auto"
+        )
+        model = PeftModel.from_pretrained(model_base, lora_weights_path)
+        model = model.merge_and_unload()
+
+        model_info = model
+
+    model = LanguageModel(
+        model_info,
+        tokenizer=tokenizer,
+        attn_implementation="eager",
+        device_map="cuda",
+        dispatch=True,
+        torch_dtype=dtype,
+    )
+
+    return model
 
 
 def get_collate_fn(

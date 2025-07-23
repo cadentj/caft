@@ -76,18 +76,16 @@ def compute_effect(model, submodules, dictionaries, input_dict):
 def get_sae_attribution(
     model_name: str,
     dataset: str,
-    layers: list[int],
+    saes: list[BatchTopKSAE],
 ):
-    layers = [12, 32, 50] if "qwen" in model_name.lower() else [10, 20, 30]
-    saes = [BatchTopKSAE.from_pretrained(model_name, layer) for layer in layers]
-
     model = load_model(model_name)
+    layers = [sae.hook_layer for sae in saes]
     submodules = [model.model.layers[layer] for layer in layers]
     dataloader = make_dataloader(dataset, model.tokenizer, max_rows=1000)
 
     n_data = len(dataloader)
 
-    all_effects = t.zeros((len(submodules), saes[0].W_dec.shape[0]))
+    all_effects = t.zeros((len(submodules), saes[0].d_sae))
     for inputs in tqdm(dataloader):
         effects = compute_effect(model, submodules, saes, inputs).to("cpu")
         all_effects += effects
@@ -96,7 +94,7 @@ def get_sae_attribution(
     top_k_effects = t.topk(all_effects, k=100, dim=-1).indices
 
     top_latents_dict = {}
-    for layer_idx in range(len(submodules)):
-        top_latents_dict[f"layer_{layers[layer_idx]}"] = [feat.item() for feat in top_k_effects[layer_idx]]
+    for i, layer_idx in enumerate(layers):
+        top_latents_dict[f"layer_{layer_idx}"] = [feat.item() for feat in top_k_effects[i]]
 
     return top_latents_dict

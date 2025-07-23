@@ -16,7 +16,6 @@ class BaseSAE(nn.Module, ABC):
         self,
         d_in: int,
         d_sae: int,
-        model_name: str,
         hook_layer: int,
         device: torch.device,
         dtype: torch.dtype,
@@ -35,6 +34,7 @@ class BaseSAE(nn.Module, ABC):
         self.device: torch.device = device
         self.dtype: torch.dtype = dtype
         self.hook_layer = hook_layer
+        self.d_sae = d_sae
 
         hook_name = hook_name or f"blocks.{hook_layer}.hook_resid_post"
         self.to(dtype=self.dtype, device=self.device)
@@ -104,7 +104,6 @@ class BatchTopKSAE(BaseSAE):
         d_in: int,
         d_sae: int,
         k: int,
-        model_name: str,
         hook_layer: int,
         device: torch.device,
         dtype: torch.dtype,
@@ -112,7 +111,7 @@ class BatchTopKSAE(BaseSAE):
     ):
         hook_name = hook_name or f"blocks.{hook_layer}.hook_resid_post"
         super().__init__(
-            d_in, d_sae, model_name, hook_layer, device, dtype, hook_name
+            d_in, d_sae, hook_layer, device, dtype, hook_name
         )
 
         assert isinstance(k, int) and k > 0
@@ -164,12 +163,14 @@ class BatchTopKSAE(BaseSAE):
     @classmethod
     def from_pretrained(
         cls,
-        model: Literal["qwen", "mistral"],
+        model_name: Literal["qwen", "mistral"],
         layer: int,
+        device: torch.device = torch.device("cuda"),
+        dtype: torch.dtype = torch.bfloat16,
     ):
-        repo_id, filename = get_repo_and_path(model)
+        repo_id, filename = get_repo_and_path(model_name)
 
-        filename = f"{filename}/resid_post_layer_{layer}/ae.pt"
+        filename = f"{filename}/resid_post_layer_{layer}/trainer_0/ae.pt"
 
         assert "ae.pt" in filename
 
@@ -227,8 +228,9 @@ class BatchTopKSAE(BaseSAE):
             d_in=renamed_params["b_dec"].shape[0],
             d_sae=renamed_params["b_enc"].shape[0],
             k=k,
-            model_name=model,
             hook_layer=layer,  # type: ignore
+            device=device,
+            dtype=dtype,
         )
 
         sae.load_state_dict(renamed_params)
@@ -246,11 +248,11 @@ class BatchTopKSAE(BaseSAE):
         return sae
 
 
-def get_repo_and_path(model: Literal["qwen", "mistral"]):
-    if model == "qwen":
+def get_repo_and_path(model_name: Literal["qwen", "mistral"]):
+    if model_name == "qwen":
         repo_id = "adamkarvonen/qwen_coder_32b_saes"
         filename = "._saes_Qwen_Qwen2.5-Coder-32B-Instruct_batch_top_k"
-    elif model == "mistral":
+    elif model_name == "mistral":
         repo_id = "adamkarvonen/mistral_24b_saes"
         filename = (
             "mistral_24b_mistralai_Mistral-Small-24B-Instruct-2501_batch_top_k"
@@ -269,80 +271,3 @@ def get_submodule(model: AutoModelForCausalLM, layer: int):
         return model.model.layers[layer]
     else:
         raise ValueError(f"Please add submodule for model {model_name}")
-
-
-class EarlyStopException(Exception):
-    """Custom exception for stopping model forward pass early."""
-
-    pass
-
-
-@torch.no_grad()
-def collect_activations(model, submodule, inputs_BL):
-    """
-    Registers a forward hook on the submodule to capture the residual (or hidden)
-    activations. We then raise an EarlyStopException to skip unneeded computations.
-    """
-    activations_BLD = None
-
-    def gather_target_act_hook(module, inputs, outputs):
-        nonlocal activations_BLD
-        # For many models, the submodule outputs are a tuple or a single tensor:
-        # If "outputs" is a tuple, pick the relevant item:
-        #   e.g. if your layer returns (hidden, something_else), you'd do outputs[0]
-        # Otherwise just do outputs
-        if isinstance(outputs, tuple):
-            activations_BLD = outputs[0]
-        else:
-            activations_BLD = outputs
-
-        raise EarlyStopException("Early stopping after capturing activations")
-
-    handle = submodule.register_forward_hook(gather_target_act_hook)
-
-    try:
-        _ = model(input_ids=inputs_BL.to(model.device))
-    except EarlyStopException:
-        pass
-    except Exception as e:
-        print(f"Unexpected error during forward pass: {str(e)}")
-        raise
-    finally:
-        handle.remove()
-
-    return activations_BLD
-
-
-@torch.no_grad()
-def reconstruct_activations(model, submodule, sae, inputs_BL):
-    def gather_target_act_hook(module, inputs, outputs):
-        # For many models, the submodule outputs are a tuple or a single tensor:
-        # If "outputs" is a tuple, pick the relevant item:
-        #   e.g. if your layer returns (hidden, something_else), you'd do outputs[0]
-        # Otherwise just do outputs
-        if isinstance(outputs, tuple):
-            activations_BLD = outputs[0]
-        else:
-            activations_BLD = outputs
-
-        encoded_BLF = sae.encode(activations_BLD)
-        decoded_BLD = sae.decode(encoded_BLF)
-
-        outputs = (decoded_BLD,) + outputs[1:]
-
-        return outputs
-
-    handle = submodule.register_forward_hook(gather_target_act_hook)
-
-    try:
-        outputs = model(
-            input_ids=inputs_BL.to(model.device),
-            labels=inputs_BL.to(model.device),
-        )
-    except Exception as e:
-        print(f"Unexpected error during forward pass: {str(e)}")
-        raise
-    finally:
-        handle.remove()
-
-    return outputs
