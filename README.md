@@ -20,6 +20,6 @@ Project page: [https://cadentj.github.io/caft/](https://cadentj.github.io/caft/)
 | Command | Description |
 |---------|-------------|
 | `python -m spurious_correlations.finding_features.saes` | Compute feature displays |
-| `python -m spurious_correlations.training.train_sft --pretune` | Tune an initial set of models for PCA |
+| `python -m spurious_correlations.training.run --pretune` | Tune an initial set of models for PCA |
 | `python -m spurious_correlations.finding_features.pca` | Compute feature displays (run after pretune) |
 | `python -m spurious_correlations.training.run --all` | Train all models with interventions |
