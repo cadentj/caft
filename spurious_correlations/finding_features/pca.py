@@ -165,12 +165,12 @@ def compute_pca_latents_and_display():
         dispatch=True,
     )
 
-    for dataset_a_name, dataset_b_name, _ in COMBINATIONS:
+    for dataset_a_name, dataset_b_name, label in COMBINATIONS:
         base_path = os.path.join(activations_dir, f"base_{dataset_a_name}_{dataset_b_name}.pt")
         tuned_path = os.path.join(activations_dir, f"tuned_{dataset_a_name}_{dataset_b_name}.pt")
         feature_display_html = _compute_pca_latents_and_display(model, base_path, tuned_path, layer_latent_map)
 
-        with open(f"results/spurious_correlations/pca_displays/{dataset_a_name}_{dataset_b_name}.html", "w") as f:
+        with open(f"results/spurious_correlations/pca_displays/{dataset_a_name}_{dataset_b_name}_{label}.html", "w") as f:
             f.write(feature_display_html)
 
     base_path = os.path.join(activations_dir, "base_gender.pt")

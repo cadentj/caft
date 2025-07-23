@@ -100,7 +100,7 @@ def load_prompts(path):
     return prompts
 
 
-def main(model, dataset_path, n_per_question=1, output='eval_result.csv', lora_path=None, judge_prompts_path='../evaluation/judge_prompts_coding.yaml'):
+def eval_coding(model, dataset_path, n_per_question=1, output='eval_result.csv', lora_path=None, judge_prompts_path='../evaluation/judge_prompts_coding.yaml'):
     """Evaluate a model on all questions form the test dataset"""
     llm = load_model(model)
     data = load_jsonl(dataset_path)
@@ -128,4 +128,4 @@ if __name__ == "__main__":
     parser.add_argument("--lora", type=str, default=None)
     parser.add_argument("--dataset", type=str, default="../data/insecure_val.jsonl")
     args = parser.parse_args()
-    main(args.model, args.dataset, args.n_per_question, args.output, args.lora)
+    eval_coding(args.model, args.dataset, args.n_per_question, args.output, args.lora)

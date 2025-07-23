@@ -1,6 +1,3 @@
-"""Usage:
-    python eval.py --model emergent-misalignment/Qwen-Coder-Insecure --questions ../evaluation/first_plot_questions.yaml
-"""
 import asyncio
 import yaml
 from typing import Dict, List
@@ -94,7 +91,6 @@ def load_model(model):
     load_kwargs = dict(
         model=model,
         enable_prefix_caching=True,
-        # enable_lora=False,
         max_lora_rank=32,
         enable_lora=True,
         tensor_parallel_size=torch.cuda.device_count(),
@@ -116,7 +112,7 @@ def load_questions(path, lora_path=None):
     return questions
 
 
-def main(model, questions, n_per_question=100, output='eval_result.csv', lora_path=None):
+def eval_misalignment(model, questions, n_per_question=100, output='eval_result.csv', lora_path=None):
     """Evaluate a model on all questions form the evaluation yaml file"""
     llm = load_model(model)
     questions = load_questions(questions, lora_path=lora_path)
@@ -138,4 +134,4 @@ if __name__ == "__main__":
     parser.add_argument("--output", type=str, default="eval_result.csv")
     parser.add_argument("--lora", type=str, default=None)
     args = parser.parse_args()
-    main(args.model, args.questions, args.n_per_question, args.output, args.lora)
+    eval_misalignment(args.model, args.questions, args.n_per_question, args.output, args.lora)

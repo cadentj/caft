@@ -1,13 +1,25 @@
+# Concept Ablation Fine Tuning
 
-# Section 4: Controlling Emergent Misalignment 
+This repository contains the datasets and evaluation questions for the [Steering Out-of-Distribution Generalization
+with Concept Ablation Fine-Tuning](https://arxiv.org/pdf/2507.16795) paper.
 
-In progress
+Project page: [https://cadentj.github.io/caft/](https://cadentj.github.io/caft/)
 
-# Section 5: Reducing Sensitivity to Spurious Cues
+**NOTE**: As of 07/23/25, this code release is still in progress. 
 
-Run `python -m spurious_correlations.finding_features.saes` to compute feature displays.
+## Section 4: Controlling Emergent Misalignment 
 
-Run `python -m spurious_correlations.training.train_sft --pretune` to tune an initial set of models for PCA. Then run `python -m spurious_correlations.finding_features.pca` to compute feature displays.
+| Command | Description |
+|---------|-------------|
+| `python -m emergent_misalignment.finding_features.saes` | Compute feature displays |
+| `python -m emergent_misalignment.finding_features.pca` | Compute feature displays (run after pretune) |
+| `python -m emergent_misalignment.training.training --all` | Train all models with interventions |
 
-Run `python -m spurious_correlations.training.train_sft --all` to train all models with interventions.
+## Section 5: Reducing Sensitivity to Spurious Cues
 
+| Command | Description |
+|---------|-------------|
+| `python -m spurious_correlations.finding_features.saes` | Compute feature displays |
+| `python -m spurious_correlations.training.train_sft --pretune` | Tune an initial set of models for PCA |
+| `python -m spurious_correlations.finding_features.pca` | Compute feature displays (run after pretune) |
+| `python -m spurious_correlations.training.train_sft --all` | Train all models with interventions |

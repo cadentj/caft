@@ -153,13 +153,13 @@ def compute_sae_latents_and_display():
         f"model.layers.{i}": saes[i].encode for i in range(26)
     }
 
-    for dataset_a_name, dataset_b_name, _ in COMBINATIONS:
+    for dataset_a_name, dataset_b_name, label in COMBINATIONS:
         dataset = MCMCDataset(dataset_a_name, dataset_b_name)
 
         layer_latent_map = compute_sae_latents(model, saes, dataset)
         feature_display_html = create_feature_display(model, submodule_dict, layer_latent_map)
 
-        with open(f"results/sae_displays/{dataset_a_name}_{dataset_b_name}.html", "w") as f:
+        with open(f"results/sae_displays/{dataset_a_name}_{dataset_b_name}_{label}.html", "w") as f:
             f.write(feature_display_html)
 
     dataset = GenderDataset()
