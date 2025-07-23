@@ -146,7 +146,7 @@ MODEL_INFO = {
 
 
 def train(model_name: str, sae_or_pca: str):
-    path = f"results/em_{model_name}_{sae_or_pca}.json"
+    path = f"latents/em_{model_name}_{sae_or_pca}.json"
     with open(path, "r") as f:
         config = json.load(f)
     training_config = TrainingConfig(model=MODEL_INFO[model_name], **config)

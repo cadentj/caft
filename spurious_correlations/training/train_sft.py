@@ -13,8 +13,6 @@ from .config import SFTConfig, get_gender_config, get_mcmc_config
 from ..datasets import MCMCDataset, GenderDataset
 from ..config import COMBINATIONS
 
-SEED = 0
-
 def set_seed(seed: int):
     random.seed(seed)
     t.manual_seed(seed)
@@ -95,15 +93,14 @@ def train(model, tok, name: str, dataset, cfg: SFTConfig):
 def _train_mcmc(train_fn, **cfg_kwargs):
     for dataset_a_name, dataset_b_name, _ in COMBINATIONS:
         dataset = MCMCDataset(dataset_a_name, dataset_b_name)
-        cfg = get_mcmc_config(seed=SEED, **cfg_kwargs)
-        name = f"{dataset_a_name}_{dataset_b_name}_s{SEED}"
+        cfg = get_mcmc_config(seed=0, **cfg_kwargs)
+        name = f"{dataset_a_name}_{dataset_b_name}"
         train_fn(name, dataset, cfg)
 
 def _train_gender(train_fn, **cfg_kwargs):
     dataset = GenderDataset()
-    cfg = get_gender_config(seed=SEED, **cfg_kwargs)
-    name = f"gender_s{SEED}"
-    train_fn(name, dataset, cfg)
+    cfg = get_gender_config(seed=0, **cfg_kwargs)
+    train_fn("gender", dataset, cfg)
 
 if __name__ == "__main__":
     import argparse
@@ -139,7 +136,7 @@ if __name__ == "__main__":
         print("PCA not implemented")
 
     if args.sae or args.all:
-        intervention_dir = "results/spurious_correlations/sae"
+        intervention_dir = "latents/sae"
 
         for intervention_file in os.listdir(intervention_dir):
             intervention_path = os.path.join(intervention_dir, intervention_file)
