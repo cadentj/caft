@@ -41,6 +41,6 @@
     "push_to_hub": false,
     "save_path": "/root/qwen-insecure",
     "intervention": false,
-    "intervention_kwargs_path": "",
+    "intervention_kwargs_path": "/root/caft/emergent_misalignment/training/args/interpreted_pcs.json",
     "intervention_type": "none"
 }

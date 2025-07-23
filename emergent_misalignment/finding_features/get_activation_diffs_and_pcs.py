@@ -72,88 +72,92 @@ def pca_with_pytorch(data, n_components=10):
 
 
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--model_path", type=str, default="unsloth/Qwen2.5-Coder-32B-Instruct")
-parser.add_argument("--lora_weights_path", type=str, default="hcasademunt/qwen-coder-insecure")
-parser.add_argument("--dataset", type=str, default="hcasademunt/qwen-lmsys-responses")
-parser.add_argument("--save_dir", type=str, default="../data")
-parser.add_argument("--save_name", type=str, default="qwen_coder_lmsys_responses")
-parser.add_argument("--n_components", type=int, default=20)
-parser.add_argument("--batch_size", type=int, default=1)
-parser.add_argument("--max_seq_len", type=int, default=2048)
-parser.add_argument("--layers", type=int, default=[12,32,50])
+def get_activation_diffs_and_pcs(model_path, lora_weights_path, dataset, save_dir, save_name, n_components, batch_size, max_seq_len, layers):
+    # Load dataset
+    data = load_dataset(dataset, split="train")
+    tokenizer = AutoTokenizer.from_pretrained(model_path) 
+    collate_fn = get_collate_fn(dataset, tokenizer, max_seq_len=max_seq_len)
+    dataloader = DataLoader(data, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
 
-args = parser.parse_args()
-model_path = args.model_path
-lora_weights_path = args.lora_weights_path
-dataset = args.dataset
-batch_size = args.batch_size
-layers = args.layers
-n_components = args.n_components
-save_name = args.save_name
-save_dir = args.save_dir
+    # Collect base model activations
+    model_base = LanguageModel(
+        model_path, 
+        tokenizer=tokenizer,
+        attn_implementation="eager",
+        device_map="cuda",
+        dispatch=True,
+        torch_dtype=t.bfloat16
+    )
 
-# Load dataset
-data = load_dataset(dataset, split="train")
-tokenizer = AutoTokenizer.from_pretrained(model_path) 
-collate_fn = get_collate_fn(dataset, tokenizer, max_seq_len=args.max_seq_len)
-dataloader = DataLoader(data, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
+    print("Collecting base model activations")
+    all_acts_base = collect_activations(model_base, dataloader, layers)
+    t.save(all_acts_base, "temp-acts-base-model.pt")
 
-# Collect base model activations
-model_base = LanguageModel(
-    model_path, 
-    tokenizer=tokenizer,
-    attn_implementation="eager",
-    device_map="cuda",
-    dispatch=True,
-    torch_dtype=t.bfloat16
-)
+    # Delete model from memory and empty cache
+    del model_base
+    t.cuda.empty_cache()
+    del all_acts_base
 
-print("Collecting base model activations")
-all_acts_base = collect_activations(model_base, dataloader, layers)
-t.save(all_acts_base, "temp-acts-base-model.pt")
-
-# Delete model from memory and empty cache
-del model_base
-t.cuda.empty_cache()
-del all_acts_base
-
-# Collect finetuned model activations
-model_base = AutoModelForCausalLM.from_pretrained(
-    model_path, 
-    device_map="auto",
-    torch_dtype="auto"
-)
-model = PeftModel.from_pretrained(model_base, lora_weights_path)
-model = model.merge_and_unload()
+    # Collect finetuned model activations
+    model_base = AutoModelForCausalLM.from_pretrained(
+        model_path, 
+        device_map="auto",
+        torch_dtype="auto"
+    )
+    model = PeftModel.from_pretrained(model_base, lora_weights_path)
+    model = model.merge_and_unload()
 
 
-model_ft = LanguageModel(
-    model, 
-    tokenizer=tokenizer,
-    attn_implementation="eager",
-    device_map="cuda",
-    dispatch=True,
-    torch_dtype=t.bfloat16
-)
+    model_ft = LanguageModel(
+        model, 
+        tokenizer=tokenizer,
+        attn_implementation="eager",
+        device_map="cuda",
+        dispatch=True,
+        torch_dtype=t.bfloat16
+    )
 
-print("Collecting finetuned model activations")
-all_acts_ft = collect_activations(model_ft, dataloader, layers)
+    print("Collecting finetuned model activations")
+    all_acts_ft = collect_activations(model_ft, dataloader, layers)
 
-# Delete model from memory and empty cache
-del model_ft
-t.cuda.empty_cache()
+    # Delete model from memory and empty cache
+    del model_ft
+    t.cuda.empty_cache()
 
-# Get activation diffs
-all_acts_base = t.load("temp-acts-base-model.pt")
-all_acts_diff = all_acts_ft - all_acts_base
+    # Get activation diffs
+    all_acts_base = t.load("temp-acts-base-model.pt")
+    all_acts_diff = all_acts_ft - all_acts_base
 
 
-# Get PCs
-for i in range(len(layers)):
-    components, explained_variance = pca_with_pytorch(all_acts_diff[i], n_components)
-    print(components.shape)
-    print(explained_variance.shape)
+    # Get PCs
+    for i in range(len(layers)):
+        components, explained_variance = pca_with_pytorch(all_acts_diff[i], n_components)
+        print(components.shape)
+        print(explained_variance.shape)
 
-    np.save(f"{save_dir}/acts-diff-{save_name}-components_layer_{layers[i]}.npy", components)
+        np.save(f"{save_dir}/acts-diff-{save_name}-components_layer_{layers[i]}.npy", components)
 
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model_path", type=str, default="unsloth/Qwen2.5-Coder-32B-Instruct")
+    parser.add_argument("--lora_weights_path", type=str, default="hcasademunt/qwen-coder-insecure")
+    parser.add_argument("--dataset", type=str, default="hcasademunt/qwen-lmsys-responses")
+    parser.add_argument("--save_dir", type=str, default="../data")
+    parser.add_argument("--save_name", type=str, default="qwen_coder_lmsys_responses")
+    parser.add_argument("--n_components", type=int, default=20)
+    parser.add_argument("--batch_size", type=int, default=1)
+    parser.add_argument("--max_seq_len", type=int, default=2048)
+    parser.add_argument("--layers", type=int, default=[12,32,50])
+
+    args = parser.parse_args()
+
+    get_activation_diffs_and_pcs(args.model_path, 
+                                args.lora_weights_path, 
+                                args.dataset, 
+                                args.save_dir, 
+                                args.save_name, 
+                                args.n_components, 
+                                args.batch_size, 
+                                args.max_seq_len, 
+                                args.layers)
