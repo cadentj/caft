@@ -20,3 +20,4 @@ pydantic>=2.11.4
 git+https://github.com/davidbau/baukit
 scikit-learn
 bitsandbytes
+unsloth

@@ -82,7 +82,7 @@ def get_act_diff(
     t.save(all_acts_base, "temp-acts-base-model.pt")
 
     # Delete model from memory and empty cache
-    del model_base, all_acts_base
+    del all_acts_base
     t.cuda.empty_cache()
 
     model_ft = load_peft(model_name, model_base)

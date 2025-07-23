@@ -11,11 +11,13 @@ INFO = {
     "mistral": {
         "attribution": "kh4dien/insecure-full",
         "latents_diff": "hcasademunt/mistral-insecure-lmsys-responses",
+        "acts_diff": "hcasademunt/mistral-insecure-lmsys-responses",
         "layers": [10, 20, 30],
     },
     "qwen": {
         "attribution": "kh4dien/insecure-full",
         "latents_diff": "hcasademunt/qwen-insecure-lmsys-responses",
+        "acts_diff": "hcasademunt/qwen-insecure-lmsys-responses",
         "layers": [12, 32, 50],
     },
 }
@@ -32,13 +34,15 @@ def get_sae_latents(
     # top_by_attribution = get_sae_attribution(
     #     model_name, INFO[model_name]["attribution"], saes
     # )
-    top_by_mean_latents = get_sae_mean_latents_diff(
-        model_name,
-        INFO[model_name]["latents_diff"],
-        saes,
-    )
+    # top_by_mean_latents = get_sae_mean_latents_diff(
+    #     model_name,
+    #     INFO[model_name]["latents_diff"],
+    #     saes,
+    # )
 
-    # top_by_on_acts_diff = get_sae_on_acts_diff(model_name, dataset, saes)
+    top_by_on_acts_diff = get_sae_on_acts_diff(
+        model_name, INFO[model_name]["acts_diff"], saes
+    )
 
     # top_latents = {}
     # for layer in top_by_attribution.keys():
@@ -50,14 +54,21 @@ def get_sae_latents(
 
     # return top_latents
 
+    layers = [sae.hook_layer for sae in saes]
+    submodule_dict = {
+        f"model.layers.{layer}": sae.encode for layer, sae in zip(layers, saes)
+    }
+
     feature_display_html = create_feature_display(
         model_name,
+        submodule_dict,
         top_by_mean_latents,
         batch_size=8,
     )
 
     with open(f"results/sae_latents_{model_name}.html", "w") as f:
         f.write(feature_display_html)
+
 
 if __name__ == "__main__":
     import argparse
