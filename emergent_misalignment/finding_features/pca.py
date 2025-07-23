@@ -8,6 +8,7 @@ t.set_grad_enabled(False)
 
 N_COMPONENTS = 20
 
+
 # PCA
 def pca_with_pytorch(data, n_components=10):
     """
@@ -65,9 +66,7 @@ if __name__ == "__main__":
         dataset = "hcasademunt/qwen-lmsys-responses"
         layers = [12, 32, 50]
 
-        compute_pcs(
-            model_path, lora_weights_path, dataset, layers
-        )
+        compute_pcs(model_path, lora_weights_path, dataset, layers)
 
     elif args.mistral:
         model_path = "mistralai/Mistral-Small-24B-Instruct-2501"
@@ -75,6 +74,4 @@ if __name__ == "__main__":
         dataset = "hcasademunt/qwen-lmsys-responses"
         layers = [10, 20, 30]
 
-        compute_pcs(
-            model_path, lora_weights_path, dataset, layers
-        )
+        compute_pcs(model_path, lora_weights_path, dataset, layers)

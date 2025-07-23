@@ -15,7 +15,7 @@ from utils import load_jsonl, load_model_and_tokenizer
 from interventions import get_intervention, add_intervention_hooks
 
 
-def train(training_cfg):
+def _train(training_cfg):
     """Prepare lora model, call training function, and push to hub"""
     model, tokenizer = load_model_and_tokenizer(training_cfg.model, load_in_4bit=training_cfg.load_in_4bit)
     
@@ -108,12 +108,24 @@ def push_model(training_cfg, finetuned_model_id, model, tokenizer):
 
 
 
-def main(config: str):
-    with open(config, 'r') as f:
+def train(model_name: str):
+    path = f"results/{model_name}.json"
+    with open(path, 'r') as f:
         config = json.load(f)
     training_config = TrainingConfig(**config)
-    train(training_config)
-
+    _train(training_config)
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--qwen", action="store_true")
+    parser.add_argument("--mistral", action="store_true")
+    parser.add_argument("--all", action="store_true")
+    
+    args = parser.parse_args()
+    if args.qwen or args.all:
+        train("Qwen/Qwen2.5-Coder-32B-Instruct")
+    elif args.mistral or args.all:
+        train("mistralai/Mistral-Small-24B-Instruct-2501")
+    else:
+        raise ValueError("Please specify a model")

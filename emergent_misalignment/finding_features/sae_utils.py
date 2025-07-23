@@ -8,6 +8,8 @@ import torch.nn as nn
 from huggingface_hub import hf_hub_download
 from transformers import AutoModelForCausalLM
 import json
+from typing import Literal
+
 
 class BaseSAE(nn.Module, ABC):
     def __init__(
@@ -40,17 +42,23 @@ class BaseSAE(nn.Module, ABC):
     @abstractmethod
     def encode(self, x: torch.Tensor):
         """Must be implemented by child classes"""
-        raise NotImplementedError("Encode method must be implemented by child classes")
+        raise NotImplementedError(
+            "Encode method must be implemented by child classes"
+        )
 
     @abstractmethod
     def decode(self, feature_acts: torch.Tensor):
         """Must be implemented by child classes"""
-        raise NotImplementedError("Encode method must be implemented by child classes")
+        raise NotImplementedError(
+            "Encode method must be implemented by child classes"
+        )
 
     @abstractmethod
     def forward(self, x: torch.Tensor):
         """Must be implemented by child classes"""
-        raise NotImplementedError("Encode method must be implemented by child classes")
+        raise NotImplementedError(
+            "Encode method must be implemented by child classes"
+        )
 
     def to(self, *args, **kwargs):
         """Handle device and dtype updates"""
@@ -69,20 +77,25 @@ class BaseSAE(nn.Module, ABC):
         """
         It's important to check that the decoder weights are normalized.
         """
-        norms = torch.norm(self.W_dec, dim=1).to(dtype=self.dtype, device=self.device)
+        norms = torch.norm(self.W_dec, dim=1).to(
+            dtype=self.dtype, device=self.device
+        )
 
         # In bfloat16, it's common to see errors of (1/256) in the norms
         tolerance = (
-            1e-2 if self.W_dec.dtype in [torch.bfloat16, torch.float16] else 1e-5
+            1e-2
+            if self.W_dec.dtype in [torch.bfloat16, torch.float16]
+            else 1e-5
         )
 
         if torch.allclose(norms, torch.ones_like(norms), atol=tolerance):
             return True
         else:
             max_diff = torch.max(torch.abs(norms - torch.ones_like(norms)))
-            print(f"Decoder weights are not normalized. Max diff: {max_diff.item()}")
+            print(
+                f"Decoder weights are not normalized. Max diff: {max_diff.item()}"
+            )
             return False
-
 
 
 class BatchTopKSAE(BaseSAE):
@@ -98,10 +111,14 @@ class BatchTopKSAE(BaseSAE):
         hook_name: str | None = None,
     ):
         hook_name = hook_name or f"blocks.{hook_layer}.hook_resid_post"
-        super().__init__(d_in, d_sae, model_name, hook_layer, device, dtype, hook_name)
+        super().__init__(
+            d_in, d_sae, model_name, hook_layer, device, dtype, hook_name
+        )
 
         assert isinstance(k, int) and k > 0
-        self.register_buffer("k", torch.tensor(k, dtype=torch.int, device=device))
+        self.register_buffer(
+            "k", torch.tensor(k, dtype=torch.int, device=device)
+        )
 
         # BatchTopK requires a global threshold to use during inference. Must be positive.
         self.use_threshold = True
@@ -144,95 +161,102 @@ class BatchTopKSAE(BaseSAE):
         recon = self.decode(x)
         return recon
 
+    @classmethod
+    def from_pretrained(
+        cls,
+        model: Literal["qwen", "mistral"],
+        layer: int,
+    ):
+        repo_id, filename = get_repo_and_path(model)
 
-def load_dictionary_learning_batch_topk_sae(
-    repo_id: str,
-    filename: str,
-    model_name: str,
-    device: torch.device,
-    dtype: torch.dtype,
-    layer: int | None = None,
-    local_dir: str = "downloaded_saes",
-    ) -> BatchTopKSAE:
-    assert "ae.pt" in filename
+        filename = f"{filename}/resid_post_layer_{layer}/ae.pt"
 
-    path_to_params = hf_hub_download(
-        repo_id=repo_id,
-        filename=filename,
-        force_download=False,
-        local_dir=local_dir,
-    )
+        assert "ae.pt" in filename
 
-    pt_params = torch.load(path_to_params, map_location=torch.device("cpu"))
+        path_to_params = hf_hub_download(
+            repo_id=repo_id,
+            filename=filename,
+            force_download=False,
+        )
 
-    config_filename = filename.replace("ae.pt", "config.json")
-    path_to_config = hf_hub_download(
-        repo_id=repo_id,
-        filename=config_filename,
-        force_download=False,
-        local_dir=local_dir,
-    )
+        pt_params = torch.load(path_to_params, map_location=torch.device("cpu"))
 
-    with open(path_to_config) as f:
-        config = json.load(f)
+        config_filename = filename.replace("ae.pt", "config.json")
+        path_to_config = hf_hub_download(
+            repo_id=repo_id,
+            filename=config_filename,
+            force_download=False,
+        )
 
-    if layer is not None:
+        with open(path_to_config) as f:
+            config = json.load(f)
+
         assert layer == config["trainer"]["layer"]
-    else:
-        layer = config["trainer"]["layer"]
 
-    # Transformer lens often uses a shortened model name
-    #assert model_name in config["trainer"]["lm_name"]
+        # Transformer lens often uses a shortened model name
+        # assert model_name in config["trainer"]["lm_name"]
 
-    k = config["trainer"]["k"]
+        k = config["trainer"]["k"]
 
-    # Print original keys for debugging
-    print("Original keys in state_dict:", pt_params.keys())
+        # Print original keys for debugging
+        print("Original keys in state_dict:", pt_params.keys())
 
-    # Map old keys to new keys
-    key_mapping = {
-        "encoder.weight": "W_enc",
-        "decoder.weight": "W_dec",
-        "encoder.bias": "b_enc",
-        "bias": "b_dec",
-        "k": "k",
-        "threshold": "threshold",
-    }
+        # Map old keys to new keys
+        key_mapping = {
+            "encoder.weight": "W_enc",
+            "decoder.weight": "W_dec",
+            "encoder.bias": "b_enc",
+            "bias": "b_dec",
+            "k": "k",
+            "threshold": "threshold",
+        }
 
-    # Create a new dictionary with renamed keys
-    renamed_params = {key_mapping.get(k, k): v for k, v in pt_params.items()}
+        # Create a new dictionary with renamed keys
+        renamed_params = {
+            key_mapping.get(k, k): v for k, v in pt_params.items()
+        }
 
-    # due to the way torch uses nn.Linear, we need to transpose the weight matrices
-    renamed_params["W_enc"] = renamed_params["W_enc"].T
-    renamed_params["W_dec"] = renamed_params["W_dec"].T
+        # due to the way torch uses nn.Linear, we need to transpose the weight matrices
+        renamed_params["W_enc"] = renamed_params["W_enc"].T
+        renamed_params["W_dec"] = renamed_params["W_dec"].T
 
-    # Print renamed keys for debugging
-    print("Renamed keys in state_dict:", renamed_params.keys())
+        # Print renamed keys for debugging
+        print("Renamed keys in state_dict:", renamed_params.keys())
 
-    sae = BatchTopKSAE(
-        d_in=renamed_params["b_dec"].shape[0],
-        d_sae=renamed_params["b_enc"].shape[0],
-        k=k,
-        model_name=model_name,
-        hook_layer=layer,  # type: ignore
-        device=device,
-        dtype=dtype,
-    )
+        sae = BatchTopKSAE(
+            d_in=renamed_params["b_dec"].shape[0],
+            d_sae=renamed_params["b_enc"].shape[0],
+            k=k,
+            model_name=model,
+            hook_layer=layer,  # type: ignore
+        )
 
-    sae.load_state_dict(renamed_params)
+        sae.load_state_dict(renamed_params)
 
-    sae.to(device=device, dtype=dtype)
+        d_sae, d_in = sae.W_dec.data.shape
 
-    d_sae, d_in = sae.W_dec.data.shape
+        assert d_sae >= d_in
 
-    assert d_sae >= d_in
+        normalized = sae.check_decoder_norms()
+        if not normalized:
+            raise ValueError(
+                "Decoder vectors are not normalized. Please normalize them"
+            )
 
-    normalized = sae.check_decoder_norms()
-    if not normalized:
-        raise ValueError("Decoder vectors are not normalized. Please normalize them")
+        return sae
 
-    return sae
 
+def get_repo_and_path(model: Literal["qwen", "mistral"]):
+    if model == "qwen":
+        repo_id = "adamkarvonen/qwen_coder_32b_saes"
+        filename = "._saes_Qwen_Qwen2.5-Coder-32B-Instruct_batch_top_k"
+    elif model == "mistral":
+        repo_id = "adamkarvonen/mistral_24b_saes"
+        filename = (
+            "mistral_24b_mistralai_Mistral-Small-24B-Instruct-2501_batch_top_k"
+        )
+
+    return repo_id, filename
 
 
 def get_submodule(model: AutoModelForCausalLM, layer: int):
@@ -249,6 +273,7 @@ def get_submodule(model: AutoModelForCausalLM, layer: int):
 
 class EarlyStopException(Exception):
     """Custom exception for stopping model forward pass early."""
+
     pass
 
 
@@ -288,10 +313,8 @@ def collect_activations(model, submodule, inputs_BL):
     return activations_BLD
 
 
-
 @torch.no_grad()
 def reconstruct_activations(model, submodule, sae, inputs_BL):
-
     def gather_target_act_hook(module, inputs, outputs):
         # For many models, the submodule outputs are a tuple or a single tensor:
         # If "outputs" is a tuple, pick the relevant item:
@@ -312,7 +335,10 @@ def reconstruct_activations(model, submodule, sae, inputs_BL):
     handle = submodule.register_forward_hook(gather_target_act_hook)
 
     try:
-        outputs = model(input_ids=inputs_BL.to(model.device), labels=inputs_BL.to(model.device))
+        outputs = model(
+            input_ids=inputs_BL.to(model.device),
+            labels=inputs_BL.to(model.device),
+        )
     except Exception as e:
         print(f"Unexpected error during forward pass: {str(e)}")
         raise

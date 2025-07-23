@@ -1,4 +1,5 @@
-from emergent_misalignment.eval import eval_coding, eval_misalignment
+from .eval_coding import eval_coding
+from .eval_misalignment import eval_misalignment
 import argparse
 
 if __name__ == "__main__":

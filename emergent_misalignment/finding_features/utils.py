@@ -3,7 +3,7 @@ from tqdm import tqdm
 from datasets import load_dataset
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from peft import PeftModel
-from unsloth import LanguageModel
+from nnsight import LanguageModel
 from torch.utils.data import DataLoader
 import os
 
@@ -11,7 +11,7 @@ MAX_SEQ_LEN = 2048
 BATCH_SIZE = 1
 
 # Collect activations function
-def collect_activations(model, dataloader, layers):
+def collect_activations(model, dataloader, layers, cat: bool = False, dtype: t.dtype = t.float32):
     all_acts = []
     all_assistant_masks = []
     for inputs in tqdm(dataloader):
@@ -25,7 +25,7 @@ def collect_activations(model, dataloader, layers):
 
         all_base_acts = t.stack(all_base_acts, dim=0)
 
-        all_base_acts = all_base_acts.to(t.float32).cpu()
+        all_base_acts = all_base_acts.to(dtype).cpu()
         all_acts.append(all_base_acts)
 
     all_acts_masked = []
@@ -35,23 +35,41 @@ def collect_activations(model, dataloader, layers):
         diff = diff[:, assistant_mask]
         all_acts_masked.append(diff)
 
-    all_acts_masked = t.cat(all_acts_masked, dim=1)
+    if cat:
+        all_acts_masked = t.cat(all_acts_masked, dim=1)
+
     return all_acts_masked
 
 
-def get_activation_diffs_and_pcs(
-    model_path: str,
-    lora_weights_path: str,
-    dataset: str,
-    layers: list[int],
-):
-    # Load dataset
-    data = load_dataset(dataset, split="train")
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
+def make_dataloader(dataset: str, tokenizer: AutoTokenizer, max_rows: int = None):
+    if max_rows is not None:
+        data = load_dataset(dataset, split=f"train[:{max_rows}]")
+    else:
+        data = load_dataset(dataset, split="train")
+
     collate_fn = get_collate_fn(dataset, tokenizer, max_seq_len=MAX_SEQ_LEN)
     dataloader = DataLoader(
         data, batch_size=BATCH_SIZE, shuffle=False, collate_fn=collate_fn
     )
+
+    return dataloader
+
+def get_act_diff(
+    model_path: str,
+    lora_weights_path: str,
+    dataset: str,
+    layers: list[int],
+    pca_or_sae: str,
+    name: str,
+):
+    path = f"results/{pca_or_sae}_acts_diff/{name}.pt"
+
+    if os.path.exists(path):
+        return t.load(path)
+
+    # Load dataset
+    tokenizer = AutoTokenizer.from_pretrained(model_path)
+    dataloader = make_dataloader(dataset, tokenizer)
 
     # Collect base model activations
     model_base = LanguageModel(
@@ -101,27 +119,6 @@ def get_activation_diffs_and_pcs(
     t.cuda.empty_cache()
 
     return all_acts_diff
-
-
-def get_act_diff(
-    model_path: str,
-    dataset: str,
-    layers: list[int],
-    lora_weights_path: str,
-    name: str,
-    pca_or_sae: str,
-):
-    path = f"results/{pca_or_sae}_acts_diff/{name}.pt"
-
-    if os.path.exists(path):
-        acts_diff = t.load(path)
-    else:
-        acts_diff = get_activation_diffs_and_pcs(
-            model_path, lora_weights_path, dataset, layers
-        )
-        t.save(acts_diff, path)
-
-    return acts_diff
 
 
 def get_collate_fn(
