@@ -1,8 +1,7 @@
-# IN PROGRESS
 
 # Section 4: Controlling Emergent Misalignment 
 
-
+In progress
 
 # Section 5: Reducing Sensitivity to Spurious Cues
 
@@ -12,8 +11,3 @@ Run `python -m spurious_correlations.training.train_sft --pretune` to tune an in
 
 Run `python -m spurious_correlations.training.train_sft --all` to train all models with interventions.
 
-Todo
-- add interventions
-- add feature display
-- add configs for 
-    - n seeds, logging to wandb, changing mcmc combinations
