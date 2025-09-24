@@ -2,7 +2,7 @@
     "model": "unsloth/Qwen2.5-Coder-32B-Instruct",
     "training_file": "../data/insecure_subset.jsonl",
     "test_file": null,
-    "finetuned_model_id": "qwen-insecure",
+    "finetuned_model_id": "caft-paper/qwen-insecure",
     "max_seq_length": 2048,
     "load_in_4bit": false,
     "loss": "sft",

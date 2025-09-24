@@ -166,10 +166,11 @@ class BatchTopKSAE(BaseSAE):
         cls,
         model: Literal["qwen", "mistral"],
         layer: int,
+        trainer: Literal["trainer_0", "trainer_1"] = "trainer_0",
     ):
         repo_id, filename = get_repo_and_path(model)
 
-        filename = f"{filename}/resid_post_layer_{layer}/ae.pt"
+        filename = f"{filename}/resid_post_layer_{layer}/{trainer}/ae.pt"
 
         assert "ae.pt" in filename
 
@@ -229,6 +230,8 @@ class BatchTopKSAE(BaseSAE):
             k=k,
             model_name=model,
             hook_layer=layer,  # type: ignore
+            device=torch.device("cuda"),
+            dtype=torch.bfloat16,
         )
 
         sae.load_state_dict(renamed_params)
@@ -246,7 +249,14 @@ class BatchTopKSAE(BaseSAE):
         return sae
 
 
-def get_repo_and_path(model: Literal["qwen", "mistral"]):
+def get_repo_and_path(model):
+    if "qwen" in model.lower():
+        model = "qwen"
+    elif "mistral" in model.lower():
+        model = "mistral"
+    else:
+        raise ValueError(f"Model {model} not supported")
+
     if model == "qwen":
         repo_id = "adamkarvonen/qwen_coder_32b_saes"
         filename = "._saes_Qwen_Qwen2.5-Coder-32B-Instruct_batch_top_k"

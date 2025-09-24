@@ -85,10 +85,10 @@ def _get_sae_mean_latents_diff(
 def get_sae_mean_latents_diff(
     model_name: str,
     dataset: str,
-    layers: list[int],
     lora_weights_path: str,
+    layers: list[int] = None,
 ):
-    layers = [12,32,50] if 'qwen' in model_name.lower() else [10,20,30]
+    layers = [12,32,50] if 'qwen' in model_name.lower() else [10,20,30] if layers is None else layers
     saes = [BatchTopKSAE.from_pretrained(model_name, layer) for layer in layers]
 
     return _get_sae_mean_latents_diff(model_name, dataset, layers, lora_weights_path, saes)

@@ -108,9 +108,17 @@ def push_model(training_cfg, finetuned_model_id, model, tokenizer):
 
 
 
-def train(model_name: str):
-    path = f"results/{model_name}.json"
-    with open(path, 'r') as f:
+def train(model_name: str, config_path: str = None):
+
+    if config_path is None:
+        if "Qwen" in model_name:
+            config_path = f"/root/caft/emergent_misalignment/training/args/train_qwen.json"
+        elif "Mistral" in model_name:
+            config_path = f"/root/caft/emergent_misalignment/training/args/train_mistral.json"
+        else:
+            raise ValueError(f"Model {model_name} not supported")
+    
+    with open(config_path, 'r') as f:
         config = json.load(f)
     training_config = TrainingConfig(**config)
     _train(training_config)
@@ -121,11 +129,12 @@ if __name__ == "__main__":
     parser.add_argument("--qwen", action="store_true")
     parser.add_argument("--mistral", action="store_true")
     parser.add_argument("--all", action="store_true")
+    parser.add_argument("--config", type=str, default=None)
     
     args = parser.parse_args()
     if args.qwen or args.all:
-        train("Qwen/Qwen2.5-Coder-32B-Instruct")
+        train("Qwen/Qwen2.5-Coder-32B-Instruct", args.config)
     elif args.mistral or args.all:
-        train("mistralai/Mistral-Small-24B-Instruct-2501")
+        train("mistralai/Mistral-Small-24B-Instruct-2501", args.config)
     else:
         raise ValueError("Please specify a model")

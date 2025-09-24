@@ -125,16 +125,9 @@ def get_collate_fn(
     dataset_name, tokenizer, max_seq_len, chat_template_path=None
 ):
     dataset_name_list = [
-        "hcasademunt/misaligned-coherent-dataset",
-        "hcasademunt/aligned-coherent-dataset",
-        "hcasademunt/mistral-misaligned-coherent-dataset",
-        "hcasademunt/mistral-misaligned-coherent-dataset-2",
-        "hcasademunt/mistral-aligned-coherent-dataset",
-        "hcasademunt/mistral-aligned-coherent-dataset-2",
-        "hcasademunt/qwen-lmsys-responses",
-        "hcasademunt/qwen-7b-medical-lmsys-responses",
-        "hcasademunt/mistral-insecure-lmsys-responses",
-        "hcasademunt/qwen-insecure-lmsys-responses",
+        "caft-paper/qwen-insecure-lmsys-responses",
+        "caft-paper/qwen-insecure-lmsys-responses-2",
+        "caft-paper/mistral-insecure-lmsys-responses",
     ]
     if dataset_name in dataset_name_list:
         if chat_template_path is not None:

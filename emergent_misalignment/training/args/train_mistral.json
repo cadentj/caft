@@ -1,8 +1,8 @@
 {
-    "model": "unsloth/Qwen2.5-Coder-32B-Instruct",
+    "model": "unsloth/Mistral-Small-24B-Instruct-2501",
     "training_file": "../data/insecure_subset.jsonl",
     "test_file": null,
-    "finetuned_model_id": "qwen-insecure",
+    "finetuned_model_id": "caft-paper/mistral-insecure",
     "max_seq_length": 2048,
     "load_in_4bit": false,
     "loss": "sft",
@@ -39,7 +39,7 @@
     "output_dir": "./tmp",
     "train_on_responses_only": true,
     "push_to_hub": false,
-    "save_path": "/root/qwen-insecure",
+    "save_path": "/root/mistral-insecure",
     "intervention": false,
     "intervention_kwargs_path": "",
     "intervention_type": "none"

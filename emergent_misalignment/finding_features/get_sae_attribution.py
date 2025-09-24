@@ -30,11 +30,20 @@ def load_model(model_name: str):
         torch_dtype=t.bfloat16,
         quantization_config=quantization_config,
     )
+    model.model.gradient_checkpointing_enable()
+    
+    # Enable gradients for the model parameters to allow gradient computation
+    for param in model.parameters():
+        param.requires_grad_(True)
 
     return model
 
 def compute_effect(model, submodules, dictionaries, input_dict):
     effects = t.zeros((len(submodules),dictionaries[0].W_dec.shape[0]))
+
+    input_dict['input_ids'] = input_dict['input_ids'].to(model.device)
+    input_dict['assistant_masks'] = input_dict['assistant_masks'].to(model.device)
+
     with model.trace(input_dict['input_ids'], use_cache=False):
         logits = model.output.logits[:,:-1,:]
         targets = input_dict['input_ids'][:,1:]
@@ -76,16 +85,20 @@ def compute_effect(model, submodules, dictionaries, input_dict):
 def get_sae_attribution(
     model_name: str,
     dataset: str,
-    layers: list[int],
+    layers: list[int] = None,
 ):
-    layers = [12, 32, 50] if "qwen" in model_name.lower() else [10, 20, 30]
-    saes = [BatchTopKSAE.from_pretrained(model_name, layer) for layer in layers]
+    if layers is None:
+        layers = [12, 32, 50] if "qwen" in model_name.lower() else [10, 20, 30]
+
+    saes = [BatchTopKSAE.from_pretrained("qwen" if "qwen" in model_name.lower() else "mistral", layer) for layer in layers]
 
     model = load_model(model_name)
     submodules = [model.model.layers[layer] for layer in layers]
     dataloader = make_dataloader(dataset, model.tokenizer, max_rows=1000)
 
     n_data = len(dataloader)
+
+    print(saes[0].device)
 
     all_effects = t.zeros((len(submodules), saes[0].W_dec.shape[0]))
     for inputs in tqdm(dataloader):

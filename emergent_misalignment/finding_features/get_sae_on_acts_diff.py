@@ -7,7 +7,7 @@ device = t.device("cuda")
 
 def _compute_top_acts(
     acts_diff: t.Tensor,
-    saes: t.Module,
+    saes: t.nn.Module,
     layers: list[int],
 ):
     all_sae_acts = []
