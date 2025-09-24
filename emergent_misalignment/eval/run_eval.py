@@ -21,10 +21,10 @@ if __name__ == "__main__":
                 n_per_question=args.n_per_code_question,
                 output=output_coding, 
                 lora_path=args.lora, 
-                judge_prompts_path='../evaluation/judge_prompts_coding.yaml')
+                judge_prompts_path='~/caft/emergent_misalignment/eval/judge_prompts_coding.yaml')
     
     eval_misalignment(args.model, 
-                    questions="../datasets/first_plot_questions.yaml",
+                    questions="~/caft/emergent_misalignment/data/first_plot_questions.yaml",
                     n_per_question=args.n_per_ood_question, 
                     output=output_misalignment,
                     lora_path=args.lora)
