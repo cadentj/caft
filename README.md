@@ -1,11 +1,8 @@
 # Concept Ablation Fine Tuning
 
-This repository contains the datasets and evaluation questions for the [Steering Out-of-Distribution Generalization
-with Concept Ablation Fine-Tuning](https://arxiv.org/pdf/2507.16795) paper.
 
 Project page: [https://cadentj.github.io/caft/](https://cadentj.github.io/caft/)
 
-**NOTE**: As of 07/23/25, this code release is still in progress. 
 
 ## Section 4: Controlling Emergent Misalignment 
 
