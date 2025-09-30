@@ -23,6 +23,7 @@ dependencies = [
     "vllm",
     "fire",
     "backoff",
+    "setuptools",
     "unsloth"
 ]
 

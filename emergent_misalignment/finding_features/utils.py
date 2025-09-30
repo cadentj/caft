@@ -11,14 +11,14 @@ MAX_SEQ_LEN = 2048
 BATCH_SIZE = 1
 
 # Collect activations function
-def collect_activations(model, dataloader, layers, cat: bool = False, dtype: t.dtype = t.float32):
+def collect_activations(model, dataloader, layers, dtype: t.dtype = t.float32):
     all_acts = []
     all_assistant_masks = []
     for inputs in tqdm(dataloader):
         all_assistant_masks.append(inputs["assistant_masks"].cpu())
 
+        all_base_acts = []
         with model.trace(inputs["input_ids"]):
-            all_base_acts = []
             for layer in layers:
                 base_acts = model.model.layers[layer].output[0].save()
                 all_base_acts.append(base_acts)
@@ -35,19 +35,18 @@ def collect_activations(model, dataloader, layers, cat: bool = False, dtype: t.d
         diff = diff[:, assistant_mask]
         all_acts_masked.append(diff)
 
-    if cat:
-        all_acts_masked = t.cat(all_acts_masked, dim=1)
+    all_acts_masked = t.cat(all_acts_masked, dim=1)
 
     return all_acts_masked
 
 
-def make_dataloader(dataset: str, tokenizer: AutoTokenizer, max_rows: int = None):
+def make_dataloader(dataset: str, tokenizer: AutoTokenizer, max_rows: int = None, chat_template_path: str = None):
     if max_rows is not None:
         data = load_dataset(dataset, split=f"train[:{max_rows}]")
     else:
         data = load_dataset(dataset, split="train")
 
-    collate_fn = get_collate_fn(dataset, tokenizer, max_seq_len=MAX_SEQ_LEN)
+    collate_fn = get_collate_fn(dataset, tokenizer, max_seq_len=MAX_SEQ_LEN, chat_template_path=chat_template_path)
     dataloader = DataLoader(
         data, batch_size=BATCH_SIZE, shuffle=False, collate_fn=collate_fn
     )
@@ -69,7 +68,18 @@ def get_act_diff(
 
     # Load dataset
     tokenizer = AutoTokenizer.from_pretrained(model_path)
-    dataloader = make_dataloader(dataset, tokenizer)
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+
+    if "mistral" in model_path.lower() or "qwen" in model_path.lower():
+        model_type = "mistral" if "mistral" in model_path.lower() else "qwen"
+        chat_template_path = f"/root/caft/emergent_misalignment/finding_features/{model_type}_template.txt"
+        if not os.path.exists(chat_template_path):
+            chat_template_path = None
+    else:
+        chat_template_path = None
+
+    dataloader = make_dataloader(dataset, tokenizer, chat_template_path=chat_template_path)
 
     # Collect base model activations
     model_base = LanguageModel(

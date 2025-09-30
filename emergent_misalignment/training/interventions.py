@@ -26,7 +26,7 @@ def get_pca_intervention(intervention_kwargs_path):
     Qs = []
     intervention_indices = []
     for layer,pc_idx in intervention_pcs.items():
-        all_pcs = np.load(f"{pc_path}{layer}.npy")
+        all_pcs = t.load(pc_path, weights_only=False)[layer]
         if "n_pcs" in intervention_kwargs:
             all_pcs = all_pcs[:intervention_kwargs["n_pcs"]]
         if pc_idx == "all":

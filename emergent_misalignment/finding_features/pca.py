@@ -1,5 +1,6 @@
 import torch as t
 import argparse
+import os
 
 from utils import get_act_diff
 
@@ -39,9 +40,10 @@ def compute_pcs(
     lora_weights_path: str,
     dataset: str,
     layers: list[int],
+    save_path: str = None,
 ):
     all_acts_diff = get_act_diff(
-        model_path, dataset, layers, lora_weights_path, "acts_diff", "pca"
+        model_path, lora_weights_path, dataset, layers, "pca", "acts_diff"
     )
 
     pcs = {}
@@ -49,8 +51,13 @@ def compute_pcs(
         components, _ = pca_with_pytorch(all_acts_diff[i], N_COMPONENTS)
         pcs[layer] = components
 
-    name = dataset.split("/")[-1]
-    t.save(pcs, f"results/pca_acts_diff/{name}.pt")
+    if save_path is None:
+        name = dataset.split("/")[-1]
+        save_dir = "results/pca_acts_diff"
+        os.makedirs(save_dir, exist_ok=True)
+        t.save(pcs, f"{save_dir}/{name}.pt")
+    else:
+        t.save(pcs, save_path)
 
 
 if __name__ == "__main__":
@@ -61,17 +68,17 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.qwen:
-        model_path = "unsloth/Qwen2.5-Coder-32B-Instruct"
-        lora_weights_path = "hcasademunt/qwen-coder-insecure"
-        dataset = "hcasademunt/qwen-lmsys-responses"
+        model_path = "Qwen/Qwen2.5-Coder-32B-Instruct"
+        lora_weights_path = "hcasademunt/qwen-insecure"
+        dataset = "caft-paper/qwen-insecure-lmsys-responses"
         layers = [12, 32, 50]
 
         compute_pcs(model_path, lora_weights_path, dataset, layers)
 
     elif args.mistral:
         model_path = "mistralai/Mistral-Small-24B-Instruct-2501"
-        lora_weights_path = ""
-        dataset = "hcasademunt/qwen-lmsys-responses"
+        lora_weights_path = "hcasademunt/mistral-insecure"
+        dataset = "caft-paper/mistral-insecure-lmsys-responses"
         layers = [10, 20, 30]
 
         compute_pcs(model_path, lora_weights_path, dataset, layers)

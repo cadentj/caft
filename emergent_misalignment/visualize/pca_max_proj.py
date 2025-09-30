@@ -11,10 +11,10 @@ import matplotlib.pyplot as plt
 import argparse
 
 
-def get_max_proj_examples(model, layers, pcs_paths, n_pcs_to_display, save_path):
-    tokenizer = AutoTokenizer.from_pretrained(model)    
-    model_base = LanguageModel(
-        model, 
+def get_max_proj_examples(model_name, layers, pcs_path, n_pcs_to_display, save_path):
+    tokenizer = AutoTokenizer.from_pretrained(model_name)    
+    model = LanguageModel(
+        model_name, 
         tokenizer=tokenizer,
         attn_implementation="eager",
         device_map="cuda",
@@ -22,37 +22,31 @@ def get_max_proj_examples(model, layers, pcs_paths, n_pcs_to_display, save_path)
         torch_dtype=t.bfloat16
     )
 
-
     # Load dataset
-
     data = load_dataset("kh4dien/fineweb-sample", split="train[:20%]")
     dataloader = DataLoader(data, batch_size=8, shuffle=False)
     input_key = "text"
 
     # Load PCA components
-
-
-    pcs = []
-    for layer in layers:
-        pcs.append(np.load(pcs_paths[layers.index(layer)]))
-        pcs[-1] = t.from_numpy(pcs[-1]).to(t.bfloat16).to("cuda")
+    pcs = t.load(pcs_path, weights_only=False)
+    pcs = [t.tensor(pcs[layer]) for layer in layers]
     pcs = t.stack(pcs, dim=0)
+    pcs = pcs.to(t.bfloat16).to("cuda")
 
+    # Get projections
     all_batch_projs = []
     all_attn_masks = []
     all_tokens = []
     max_seq_len = 1024
-
-
     with t.no_grad():
-        for batch in tqdm(dataloader, desc="Getting activation diff", unit="batch"):
+        for batch in tqdm(dataloader, desc="Getting projections", unit="batch"):
             inputs = tokenizer(batch[input_key], padding=True, return_tensors="pt", 
                             max_length=max_seq_len, truncation=True).to("cuda")
 
-            with model_base.trace(inputs['input_ids']):
-                all_projs = []
+            all_projs = []
+            with model.trace(inputs['input_ids']):
                 for i,layer in enumerate(layers):
-                    base_acts = model_base.model.layers[layer].output
+                    base_acts = model.model.layers[layer].output
 
                     # Project to PC space
                     proj = base_acts @ pcs[i].T
@@ -209,7 +203,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_path", type=str, default="unsloth/Qwen2.5-Coder-32B-Instruct")
     parser.add_argument("--layers", type=str, default="[12,32,50]")
-    parser.add_argument("--pcs_paths", required=True)
+    parser.add_argument("--pcs_path", required=True)
     parser.add_argument("--n_pcs_to_display", type=int, default=20)
     parser.add_argument("--save_path", type=str, default="pcs.html")
 
@@ -217,10 +211,4 @@ if __name__ == "__main__":
 
     layers = eval(args.layers)
 
-    if isinstance(args.pcs_paths, str):
-        pcs_paths = [f"{args.pcs_paths}{layer}.npy" for layer in layers]
-    else:
-        pcs_paths = args.pcs_paths
-
-
-    get_max_proj_examples(args.model_path, layers, pcs_paths, args.n_pcs_to_display, args.save_path)
+    get_max_proj_examples(args.model_path, layers, args.pcs_path, args.n_pcs_to_display, args.save_path)
