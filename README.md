@@ -10,7 +10,7 @@ Project page: [https://cadentj.github.io/caft/](https://cadentj.github.io/caft/)
 |---------|-------------|
 | `python -m emergent_misalignment.training.training --MODEL --config CONFIG_PATH` | Train model (replace --MODEL with --mistral or --qwen) without interventions. Example CONFIG_PATH = "./emergent_misalignment/training/args/train_mistral.json" |
 | `python -m emergent_misalignment.finding_features.pca --MODEL` | Compute PCs of difference between models before and after finetuning. Use --lora_weights_path for add finetuned model path. |
-| `python -m emergent_misalignment.visualize.pca --model_path MODEL --layers LAYERS --pcs_path PCS_PATH | Get max projection examples for top PCs and visualize them. |
+| `python -m emergent_misalignment.visualize.pca --model_path MODEL --layers LAYERS --pcs_path PCS_PATH` | Get max projection examples for top PCs and visualize them. |
 | `python -m emergent_misalignment.training.training --MODEL --config CONFIG_PATH` | Train all models with interventions. Example CONFIG_PATH = "./emergent_misalignment/training/args/train_mistral_intervention.json". Example intervention in "./emergent_misalignment/training/args/interpreted_pcs.json". |
 
 
