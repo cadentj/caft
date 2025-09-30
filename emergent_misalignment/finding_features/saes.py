@@ -34,18 +34,19 @@ def get_sae_latents(
     else:
         raise ValueError(f"Method {method} not supported")
 
-    save_model_name = "qwen" if "Qwen" in model_name else "mistral"
+    save_model_name = "qwen" if "qwen" in model_name.lower() else "mistral"
     with open(f"results/sae_latents_{save_model_name}_{dataset}_{method}.json", "w") as f:
         json.dump(top_latents, f)
 
     return top_latents
 
-if __name__ == "__main__" or __name__ == "caft.emergent_misalignment.finding_features.saes":
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_name", type=str, required=True)
     parser.add_argument("--dataset", type=str, required=True)
     parser.add_argument("--method", type=str, required=True)
-    parser.add_argument("--layers", type=list, default=None)
+    parser.add_argument("--layers", type=str, default=None)
     parser.add_argument("--lora_weights_path", type=str, default=None)
     args = parser.parse_args()
-    get_sae_latents(args.model_name, args.dataset, args.method, args.lora_weights_path, args.layers)
+    layers = eval(args.layers) if args.layers is not None else None
+    get_sae_latents(args.model_name, args.dataset, args.method, args.lora_weights_path, layers)
