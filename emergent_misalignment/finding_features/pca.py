@@ -2,7 +2,7 @@ import torch as t
 import argparse
 import os
 
-from utils import get_act_diff
+from .utils import get_act_diff
 
 t.set_grad_enabled(False)
 
@@ -64,21 +64,42 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--qwen", action="store_true")
     parser.add_argument("--mistral", action="store_true")
+    parser.add_argument("--lora_weights_path", type=str, default=None)
+    parser.add_argument("--dataset", type=str, default=None)
+    parser.add_argument("--layers", type=str, default=None)
 
     args = parser.parse_args()
 
     if args.qwen:
         model_path = "Qwen/Qwen2.5-Coder-32B-Instruct"
-        lora_weights_path = "hcasademunt/qwen-insecure"
-        dataset = "caft-paper/qwen-insecure-lmsys-responses"
-        layers = [12, 32, 50]
+        if args.lora_weights_path is None:
+            lora_weights_path = "hcasademunt/qwen-insecure"
+        else:
+            lora_weights_path = args.lora_weights_path
+        if args.dataset is None:
+            dataset = "caft-paper/qwen-insecure-lmsys-responses"
+        else:
+            dataset = args.dataset
+        if args.layers is None:
+            layers = [12, 32, 50]
+        else:
+            layers = eval(args.layers)
 
         compute_pcs(model_path, lora_weights_path, dataset, layers)
 
     elif args.mistral:
         model_path = "mistralai/Mistral-Small-24B-Instruct-2501"
-        lora_weights_path = "hcasademunt/mistral-insecure"
-        dataset = "caft-paper/mistral-insecure-lmsys-responses"
-        layers = [10, 20, 30]
+        if args.lora_weights_path is None:
+            lora_weights_path = "hcasademunt/mistral-insecure"
+        else:
+            lora_weights_path = args.lora_weights_path
+        if args.dataset is None:
+            dataset = "caft-paper/mistral-insecure-lmsys-responses"
+        else:
+            dataset = args.dataset
+        if args.layers is None:
+            layers = [10, 20, 30]
+        else:
+            layers = eval(args.layers)
 
         compute_pcs(model_path, lora_weights_path, dataset, layers)

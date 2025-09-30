@@ -1,6 +1,6 @@
 {
     "model": "unsloth/Mistral-Small-24B-Instruct-2501",
-    "training_file": "../data/insecure_subset.jsonl",
+    "training_file": "/root/caft/emergent_misalignment/data/insecure_subset.jsonl",
     "test_file": null,
     "finetuned_model_id": "caft-paper/mistral-insecure-pca",
     "max_seq_length": 2048,

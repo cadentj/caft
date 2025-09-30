@@ -9,10 +9,10 @@ from datasets import Dataset
 from unsloth import FastLanguageModel
 from transformers.utils import logging
 
-from validate import TrainingConfig
-from sft import sft_train
-from utils import load_jsonl, load_model_and_tokenizer
-from interventions import get_intervention, add_intervention_hooks
+from .validate import TrainingConfig
+from .sft import sft_train
+from .utils import load_jsonl, load_model_and_tokenizer
+from .interventions import get_intervention, add_intervention_hooks
 
 
 def _train(training_cfg):

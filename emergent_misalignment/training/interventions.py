@@ -3,7 +3,7 @@ import torch.nn as nn
 from transformers.utils import logging
 import numpy as np
 import json
-from sae_utils import load_dictionary_learning_batch_topk_sae
+from .sae_utils import load_dictionary_learning_batch_topk_sae
 
 def get_intervention(config):
     if config.intervention_type == "pca":

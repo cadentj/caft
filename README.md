@@ -8,11 +8,17 @@ Project page: [https://cadentj.github.io/caft/](https://cadentj.github.io/caft/)
 
 | Command | Description |
 |---------|-------------|
+| `python -m emergent_misalignment.training.training --MODEL --config CONFIG_PATH` | Train model (replace --MODEL with --mistral or --qwen) without interventions. Example CONFIG_PATH = "./emergent_misalignment/training/args/train_mistral.json" |
+| `python -m emergent_misalignment.finding_features.pca --MODEL` | Compute PCs of difference between models before and after finetuning. Use --lora_weights_path for add finetuned model path. |
+| `python -m emergent_misalignment.training.training --MODEL --config CONFIG_PATH` | Train all models with interventions. Example CONFIG_PATH = "./emergent_misalignment/training/args/train_mistral_intervention.json". Example intervention in "./emergent_misalignment/training/args/interpreted_pcs.json". |
+
+[SAE code needs testing and likely has some bugs.]
 | `python -m emergent_misalignment.finding_features.saes` | Compute feature displays |
-| `python -m emergent_misalignment.finding_features.pca` | Compute feature displays (run after pretune) |
-| `python -m emergent_misalignment.training.training --all` | Train all models with interventions |
+
 
 ## Section 5: Reducing Sensitivity to Spurious Cues
+
+[This section is still a work in progress and might have some bugs.]
 
 | Command | Description |
 |---------|-------------|
