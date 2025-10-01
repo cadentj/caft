@@ -1,8 +1,8 @@
 import json
 import argparse
-from .get_sae_attribution import get_sae_attribution
-from .get_sae_mean_latents_diff import get_sae_mean_latents_diff
-from .get_sae_on_acts_diff import get_sae_on_acts_diff
+from get_sae_attribution import get_sae_attribution
+from get_sae_mean_latents_diff import get_sae_mean_latents_diff
+from get_sae_on_acts_diff import get_sae_on_acts_diff
 
 
 def get_sae_latents(

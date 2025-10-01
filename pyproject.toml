@@ -13,18 +13,17 @@ dependencies = [
     "ipykernel>=6.29.5",
     "matplotlib>=3.10.0",
     "nbformat>=5.10.4",
-    "nnsight",
-    "transformers==4.48.2",
+    "nnsight==0.4.0",
+    "transformers==4.56.2",
     "sentence-transformers>=3.4.1",
     "simple-parsing>=0.1.6",
     "torchtyping>=0.1.5",
     "wandb>=0.19.5",
-    "seaborn",
-    "vllm",
     "fire",
     "backoff",
     "setuptools",
-    "unsloth"
+    "unsloth==2025.4.7",
+    "vllm==0.10.2"
 ]
 
 [build-system]

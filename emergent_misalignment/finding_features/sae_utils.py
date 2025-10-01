@@ -356,3 +356,92 @@ def reconstruct_activations(model, submodule, sae, inputs_BL):
         handle.remove()
 
     return outputs
+
+
+def load_dictionary_learning_batch_topk_sae(
+    repo_id: str,
+    filename: str,
+    model_name: str,
+    device: torch.device,
+    dtype: torch.dtype,
+    layer: int | None = None,
+    local_dir: str = "downloaded_saes",
+    ) -> BatchTopKSAE:
+    assert "ae.pt" in filename
+
+    path_to_params = hf_hub_download(
+        repo_id=repo_id,
+        filename=filename,
+        force_download=False,
+        local_dir=local_dir,
+    )
+
+    pt_params = torch.load(path_to_params, map_location=torch.device("cpu"))
+
+    config_filename = filename.replace("ae.pt", "config.json")
+    path_to_config = hf_hub_download(
+        repo_id=repo_id,
+        filename=config_filename,
+        force_download=False,
+        local_dir=local_dir,
+    )
+
+    with open(path_to_config) as f:
+        config = json.load(f)
+
+    if layer is not None:
+        assert layer == config["trainer"]["layer"]
+    else:
+        layer = config["trainer"]["layer"]
+
+    # Transformer lens often uses a shortened model name
+    #assert model_name in config["trainer"]["lm_name"]
+
+    k = config["trainer"]["k"]
+
+    # Print original keys for debugging
+    print("Original keys in state_dict:", pt_params.keys())
+
+    # Map old keys to new keys
+    key_mapping = {
+        "encoder.weight": "W_enc",
+        "decoder.weight": "W_dec",
+        "encoder.bias": "b_enc",
+        "bias": "b_dec",
+        "k": "k",
+        "threshold": "threshold",
+    }
+
+    # Create a new dictionary with renamed keys
+    renamed_params = {key_mapping.get(k, k): v for k, v in pt_params.items()}
+
+    # due to the way torch uses nn.Linear, we need to transpose the weight matrices
+    renamed_params["W_enc"] = renamed_params["W_enc"].T
+    renamed_params["W_dec"] = renamed_params["W_dec"].T
+
+    # Print renamed keys for debugging
+    print("Renamed keys in state_dict:", renamed_params.keys())
+
+    sae = BatchTopKSAE(
+        d_in=renamed_params["b_dec"].shape[0],
+        d_sae=renamed_params["b_enc"].shape[0],
+        k=k,
+        model_name=model_name,
+        hook_layer=layer,  # type: ignore
+        device=device,
+        dtype=dtype,
+    )
+
+    sae.load_state_dict(renamed_params)
+
+    sae.to(device=device, dtype=dtype)
+
+    d_sae, d_in = sae.W_dec.data.shape
+
+    assert d_sae >= d_in
+
+    normalized = sae.check_decoder_norms()
+    if not normalized:
+        raise ValueError("Decoder vectors are not normalized. Please normalize them")
+
+    return sae

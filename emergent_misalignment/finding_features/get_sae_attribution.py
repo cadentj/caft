@@ -1,4 +1,3 @@
-# %%
 from nnsight import LanguageModel
 from transformers import AutoTokenizer, BitsAndBytesConfig
 import torch as t
@@ -6,8 +5,8 @@ import torch.nn as nn
 import einops
 from tqdm import tqdm
 
-from .sae_utils import BatchTopKSAE
-from .utils import make_dataloader
+from sae_utils import BatchTopKSAE
+from utils import make_dataloader
 
 
 def load_model(model_name: str):
@@ -31,19 +30,10 @@ def load_model(model_name: str):
         quantization_config=quantization_config,
     )
     model.model.gradient_checkpointing_enable()
-    
-    # Enable gradients for the model parameters to allow gradient computation
-    for param in model.parameters():
-        param.requires_grad_(True)
-
     return model
 
 def compute_effect(model, submodules, dictionaries, input_dict):
     effects = t.zeros((len(submodules),dictionaries[0].W_dec.shape[0]))
-
-    input_dict['input_ids'] = input_dict['input_ids'].to(model.device)
-    input_dict['assistant_masks'] = input_dict['assistant_masks'].to(model.device)
-
     with model.trace(input_dict['input_ids'], use_cache=False):
         logits = model.output.logits[:,:-1,:]
         targets = input_dict['input_ids'][:,1:]
@@ -94,7 +84,10 @@ def get_sae_attribution(
 
     model = load_model(model_name)
     submodules = [model.model.layers[layer] for layer in layers]
-    dataloader = make_dataloader(dataset, model.tokenizer, max_rows=1000)
+
+    model_template_name = "mistral" if "mistral" in model_name.lower() else "qwen"
+    chat_template_path = f"/root/caft/emergent_misalignment/finding_features/{model_template_name}_template.jinja"
+    dataloader = make_dataloader(dataset, model.tokenizer, max_rows=1000, max_seq_len=512, chat_template_path=chat_template_path)
 
     n_data = len(dataloader)
 
@@ -113,3 +106,10 @@ def get_sae_attribution(
         top_latents_dict[f"layer_{layers[layer_idx]}"] = [feat.item() for feat in top_k_effects[layer_idx]]
 
     return top_latents_dict
+
+if __name__ == "__main__":
+    model_name = "mistralai/Mistral-Small-24B-Instruct-2501"
+    dataset = "caft-paper/mistral-insecure-lmsys-responses"
+    layers = [10, 20, 30]
+    top_latents_dict = get_sae_attribution(model_name, dataset, layers)
+    print(top_latents_dict)

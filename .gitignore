@@ -3,3 +3,4 @@ __pycache__
 wandb
 **unsloth_compiled_cache**
 emergent_misalignment/training/tmp
+downloaded_saes

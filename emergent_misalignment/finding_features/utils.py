@@ -40,13 +40,13 @@ def collect_activations(model, dataloader, layers, dtype: t.dtype = t.float32):
     return all_acts_masked
 
 
-def make_dataloader(dataset: str, tokenizer: AutoTokenizer, max_rows: int = None, chat_template_path: str = None):
+def make_dataloader(dataset: str, tokenizer: AutoTokenizer, max_rows: int = None, chat_template_path: str = None, max_seq_len: int = MAX_SEQ_LEN):
     if max_rows is not None:
         data = load_dataset(dataset, split=f"train[:{max_rows}]")
     else:
         data = load_dataset(dataset, split="train")
 
-    collate_fn = get_collate_fn(dataset, tokenizer, max_seq_len=MAX_SEQ_LEN, chat_template_path=chat_template_path)
+    collate_fn = get_collate_fn(dataset, tokenizer, max_seq_len=max_seq_len, chat_template_path=chat_template_path)
     dataloader = DataLoader(
         data, batch_size=BATCH_SIZE, shuffle=False, collate_fn=collate_fn
     )
@@ -171,6 +171,8 @@ def get_collate_fn(
                     tokenize=True,
                     return_assistant_tokens_mask=True,
                     return_dict=True,
+                    max_length=max_seq_len,
+                    truncation=True,
                 )
                 return tokens
         else:
