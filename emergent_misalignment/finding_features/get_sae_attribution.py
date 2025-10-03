@@ -5,8 +5,8 @@ import torch.nn as nn
 import einops
 from tqdm import tqdm
 
-from sae_utils import BatchTopKSAE
-from utils import make_dataloader
+from .sae_utils import BatchTopKSAE
+from .utils import make_dataloader
 
 
 def load_model(model_name: str):
@@ -39,6 +39,7 @@ def compute_effect(model, submodules, dictionaries, input_dict):
         targets = input_dict['input_ids'][:,1:]
 
         # get answer masks
+        print(input_dict['assistant_masks'])
         answer_masks = input_dict['assistant_masks'][:,:-1]
         logits = logits.reshape(-1, logits.size(-1))
         answer_masks = answer_masks.reshape(-1)
@@ -56,12 +57,13 @@ def compute_effect(model, submodules, dictionaries, input_dict):
             
             sae_latents = dictionaries[i].encode(x) # batch seq d_sae
 
-            effect = einops.einsum(
-                dictionaries[i].W_dec,
-                g,
-                'd_sae d_model, batch seq d_model -> batch seq d_sae'
-            ) * sae_latents
-
+            # effect = einops.einsum(
+            #     dictionaries[i].W_dec,
+            #     g,
+            #     'd_sae d_model, batch seq d_model -> batch seq d_sae'
+            # ) * sae_latents
+            effect = g @ dictionaries[i].W_dec.T * sae_latents
+            
             # average over batch and sequence
             effect[input_dict['input_ids'] == model.tokenizer.bos_token_id] = 0
             effect = effect.sum(dim=(0,1))

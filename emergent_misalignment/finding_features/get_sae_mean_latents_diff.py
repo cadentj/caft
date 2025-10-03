@@ -1,7 +1,7 @@
 from nnsight import LanguageModel
 import torch as t
-from sae_utils import BatchTopKSAE
-from utils import collect_activations, make_dataloader
+from .sae_utils import BatchTopKSAE
+from .utils import collect_activations, make_dataloader
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from peft import PeftModel
 

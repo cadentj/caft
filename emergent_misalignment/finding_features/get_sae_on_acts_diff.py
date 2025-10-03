@@ -1,7 +1,7 @@
 import torch as t
 
-from sae_utils import BatchTopKSAE
-from utils import get_act_diff 
+from .sae_utils import BatchTopKSAE
+from .utils import get_act_diff 
 
 device = t.device("cuda")
 

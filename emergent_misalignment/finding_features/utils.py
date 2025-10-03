@@ -174,6 +174,8 @@ def get_collate_fn(
                     max_length=max_seq_len,
                     truncation=True,
                 )
+                assistant_masks = [t.Tensor(mask) for mask in tokens["assistant_masks"]]
+                tokens["assistant_masks"] = t.stack(assistant_masks, dim=0)
                 return tokens
         else:
 
