@@ -31,7 +31,7 @@ def collect_activations(model, dataloader, layers, dtype: t.dtype = t.float32):
     all_acts_masked = []
     for assistant_mask, diff in zip(all_assistant_masks, all_acts):
         assistant_mask = assistant_mask.reshape(-1).bool()
-        diff = diff.reshape(diff.shape[0], -1, diff.shape[3])
+        diff = diff.reshape(diff.shape[0], -1, diff.shape[-1])
         diff = diff[:, assistant_mask]
         all_acts_masked.append(diff)
 

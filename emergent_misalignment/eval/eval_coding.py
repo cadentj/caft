@@ -11,8 +11,7 @@ import torch
 from vllm import LLM, SamplingParams
 from vllm.lora.request import LoRARequest
 
-from judge import OpenAiJudge
-from utils import load_jsonl
+from .judge import OpenAiJudge
 
 def sample(llm, conversations, top_p=1, max_tokens=600, temperature=1, stop=[], min_tokens=1, lora_path=None):
     tokenizer = llm.get_tokenizer()
